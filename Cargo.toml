@@ -2,5 +2,9 @@
 name = "stm32-generator"
 version = "0.1.0"
 edition = "2024"
+authors = [
+  "aragami3070 <smirnov17612@gmail.com>",
+  "NomenConservandum hramov.sanya2018@yandex.ru"
+]
 
 [dependencies]
