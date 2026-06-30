@@ -1,4 +1,5 @@
 /// Распиновка под STM32F401 (в частности под black pill)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StmF401Pin {
     A0,
     A1,
