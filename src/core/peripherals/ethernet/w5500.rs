@@ -3,6 +3,7 @@ use std::net::Ipv4Addr;
 use crate::core::{gpio::ChosenPin, peripherals::ethernet::MacAddr};
 
 /// Сетевые параметры
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NetworkConfig {
     pub mac_addr: MacAddr,
     pub ip: Ipv4Addr,
@@ -13,6 +14,7 @@ pub struct NetworkConfig {
 /// Режим работы сокета W5500.
 ///
 /// Пока поддерживается только TCP-сервер.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SocketMode {
     /// Слушаем входящие TCP-подключения на указанном порту.
     TcpServer {
@@ -22,6 +24,7 @@ pub enum SocketMode {
 }
 
 /// Конфигурация модуля W5500.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct W5500Config {
     // SPI пины
     pub sck: ChosenPin,
