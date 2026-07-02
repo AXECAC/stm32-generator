@@ -1,7 +1,10 @@
 use crate::core::{
-    gpio::{ChosenSpiBus, ChosenPin, ChosenPinWithMode},
+    errors::ConfigError,
+    gpio::{ChosenPin, ChosenPinWithMode, ChosenSpiBus},
     peripherals::Peripheral,
 };
+
+type ConfigResult<T> = Result<T, ConfigError>;
 
 /// Вся конфигурация платы и её переферии
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
@@ -27,6 +30,15 @@ impl Config {
 
     pub fn peripherals(&self) -> &[Peripheral] {
         &self.peripherals
+    }
+
+    pub fn add_gpio_pin(&mut self, gpio_pin: PinConfig) -> ConfigResult<()> {
+        if self.gpio_pins.contains(&gpio_pin) {
+            return Err(ConfigError::DuplicateGPIOPin(gpio_pin.pin));
+        }
+
+        self.gpio_pins.push(gpio_pin);
+        Ok(())
     }
 }
 
