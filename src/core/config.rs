@@ -1,12 +1,21 @@
-use crate::core::{gpio::{ChosenBus, ChosenPin, ChosenPinWithMode}, peripherals::Peripheral};
+use crate::core::{
+    gpio::{ChosenBus, ChosenPin, ChosenPinWithMode},
+    peripherals::Peripheral,
+};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// Вся конфигурация платы и её переферии
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Config {
     gpio_pins: Vec<PinConfig>,
     spi_buses: Vec<SpiConfig>,
-    peripherals: Vec<Peripheral>
+    peripherals: Vec<Peripheral>,
 }
 
+impl Config {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
 
 /// Конфигурация для одного пина из gpio платы микроконтроллера
 #[derive(Debug, Clone, PartialEq, Eq)]
