@@ -12,8 +12,21 @@ pub struct Config {
 }
 
 impl Config {
+    /// Создает новый пустой [`Config`].
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn gpio(&self) -> &[PinConfig] {
+        &self.gpio_pins
+    }
+
+    pub fn spi(&self) -> &[SpiConfig] {
+        &self.spi_buses
+    }
+
+    pub fn peripherals(&self) -> &[Peripheral] {
+        &self.peripherals
     }
 }
 
