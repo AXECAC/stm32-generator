@@ -1,4 +1,4 @@
-use crate::core::gpio::{ChosenPin, ChosenPinWithMode};
+use crate::core::gpio::{ChosenBus, ChosenPin, ChosenPinWithMode};
 
 /// Конфигурация для одного пина из gpio платы микроконтроллера
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -10,13 +10,12 @@ pub struct PinConfig {
 /// Конфигурация периферии
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SpiConfig {
-    pub enabled: bool,
+    pub bus: ChosenBus,
     pub frequency_mhz: u32,
     pub mode: SpiMode,
     pub sck: ChosenPin, // просто идентификатор пина
     pub miso: Option<ChosenPin>,
     pub mosi: Option<ChosenPin>,
-    pub nss: Option<ChosenPin>,
 }
 
 /// Конфигурация шины SPI
