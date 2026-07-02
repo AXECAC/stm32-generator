@@ -15,6 +15,6 @@ pub enum ChosenPinWithMode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ChosenBus {
+pub enum ChosenSpiBus {
     StmF401(StmF401SpiBus),
 }

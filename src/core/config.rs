@@ -1,5 +1,5 @@
 use crate::core::{
-    gpio::{ChosenBus, ChosenPin, ChosenPinWithMode},
+    gpio::{ChosenSpiBus, ChosenPin, ChosenPinWithMode},
     peripherals::Peripheral,
 };
 
@@ -40,7 +40,7 @@ pub struct PinConfig {
 /// Конфигурация периферии
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SpiConfig {
-    pub bus: ChosenBus,
+    pub bus: ChosenSpiBus,
     pub frequency_mhz: u32,
     pub mode: SpiMode,
     pub sck: ChosenPin, // просто идентификатор пина
