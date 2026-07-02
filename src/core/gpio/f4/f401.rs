@@ -41,3 +41,13 @@ pub enum StmF401Pin {
     H0,
     H1,
 }
+
+/// Доступные SPI для STM32F401
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StmF401SpiBus {
+    SPI1,
+    SPI2,
+    SPI3,
+    SPI4,
+    SPI5,
+}
