@@ -1,4 +1,4 @@
-use crate::core::gpio::f4::{StmF4PinMode, f401::StmF401Pin};
+use crate::core::gpio::f4::{StmF4PinMode, f401::{StmF401Pin, StmF401SpiBus}};
 
 pub mod f4;
 
@@ -12,4 +12,9 @@ pub enum ChosenPin {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ChosenPinWithMode {
     StmF401(StmF401Pin, StmF4PinMode),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ChosenBus {
+    StmF401(StmF401SpiBus),
 }
