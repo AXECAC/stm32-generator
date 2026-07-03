@@ -12,9 +12,10 @@ pub struct PeripheralId(u64);
 /// Вся конфигурация платы и её переферии
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Config {
+    nex_periph_id: u64,
     gpio_pins: Vec<PinConfig>,
     spi_buses: Vec<SpiConfig>,
-    peripherals: Vec<Peripheral>,
+    peripherals: Vec<(PeripheralId, Peripheral)>,
 }
 
 impl Config {
@@ -34,7 +35,7 @@ impl Config {
     }
 
     /// Возвращает слайс peripherals из [`Config`].
-    pub fn peripherals(&self) -> &[Peripheral] {
+    pub fn peripherals(&self) -> &[(PeripheralId, Peripheral)] {
         &self.peripherals
     }
 
@@ -51,7 +52,7 @@ impl Config {
         }
 
         for pin in &self.peripherals {
-            pins.extend(pin.uses_pins());
+            pins.extend(pin.1.uses_pins());
         }
 
         pins
@@ -85,7 +86,7 @@ impl Config {
         Ok(())
     }
 
-    pub fn add_peripheral(&mut self, peripheral: Peripheral) -> ConfigResult<()> {
+    pub fn add_peripheral(&mut self, peripheral: Peripheral) -> ConfigResult<PeripheralId> {
         if !self
             .spi_buses
             .iter()
@@ -95,8 +96,11 @@ impl Config {
         }
 
         self.check_conflicts_pins(&peripheral.uses_pins())?;
-        self.peripherals.push(peripheral);
-        Ok(())
+
+        let periph_id = PeripheralId(self.nex_periph_id);
+        self.peripherals.push((periph_id, peripheral));
+        self.nex_periph_id += 1;
+        Ok(periph_id)
     }
 
     /// Удаляет gpio пин по его идентификатору.
@@ -108,7 +112,7 @@ impl Config {
     /// Удаляет spi шину по идентификатору.
     /// Возвращает ошибку если на эту шину завязана периферия.
     pub fn remove_spi(&mut self, bus: &ChosenSpiBus) -> Result<Option<SpiConfig>, ConfigError> {
-        if self.peripherals.iter().any(|p| p.spi_bus() == *bus) {
+        if self.peripherals.iter().any(|p| p.1.spi_bus() == *bus) {
             return Err(ConfigError::SpiBusInUse(*bus));
         }
 
