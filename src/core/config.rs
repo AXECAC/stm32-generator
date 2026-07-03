@@ -33,6 +33,7 @@ impl Config {
         &self.peripherals
     }
 
+    /// Возвращает список всех использованных пинов с gpio, spi и переферии
     fn all_uses_pins(&self) -> Vec<ChosenPin> {
         let mut pins = Vec::new();
 
@@ -51,6 +52,7 @@ impl Config {
         pins
     }
 
+    /// Проверка повторного использования [`ChosenPin`]
     fn check_conflicts_pins(&self, new_pins: &[ChosenPin]) -> ConfigResult<()> {
         let uses = self.all_uses_pins();
         for pin in new_pins {
@@ -64,6 +66,16 @@ impl Config {
     pub fn add_gpio_pin(&mut self, gpio_pin: PinConfig) -> ConfigResult<()> {
         self.check_conflicts_pins(&[gpio_pin.pin.into()])?;
         self.gpio_pins.push(gpio_pin);
+        Ok(())
+    }
+
+    pub fn add_spi_bus(&mut self, spi: SpiConfig) -> ConfigResult<()> {
+        if self.spi_buses.iter().any(|s| s.bus == spi.bus) {
+            return Err(ConfigError::DuplicateSpiBus(spi.bus));
+        }
+
+        self.check_conflicts_pins(&spi.uses_pins())?;
+        self.spi_buses.push(spi);
         Ok(())
     }
 }
