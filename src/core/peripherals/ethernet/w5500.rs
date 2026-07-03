@@ -1,6 +1,6 @@
 use std::net::Ipv4Addr;
 
-use crate::core::{gpio::ChosenPin, peripherals::ethernet::MacAddr};
+use crate::core::{gpio::{ChosenPin, ChosenSpiBus}, peripherals::ethernet::MacAddr};
 
 /// Сетевые параметры
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -26,10 +26,7 @@ pub enum SocketMode {
 /// Конфигурация модуля W5500.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct W5500Config {
-    // SPI пины
-    pub sck: ChosenPin,
-    pub miso: ChosenPin,
-    pub mosi: ChosenPin,
+    pub spi_bus: ChosenSpiBus,
 
     // Управляющие пины
     pub cs: ChosenPin,  // Chip Select
