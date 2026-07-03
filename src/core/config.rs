@@ -102,6 +102,17 @@ impl Config {
         let pos = self.gpio_pins.iter().position(|p| *pin == p.pin.into())?;
         Some(self.gpio_pins.remove(pos))
     }
+
+    /// Удаляет spi шину по идентификатору.
+    /// Возвращает ошибку если на эту шину завязана периферия.
+    pub fn remove_spi(&mut self, bus: &ChosenSpiBus) -> Result<Option<SpiConfig>, ConfigError> {
+        if self.peripherals.iter().any(|p| p.spi_bus() == *bus) {
+            return Err(ConfigError::SpiBusInUse(*bus));
+        }
+
+        let pos = self.spi_buses.iter().position(|s| &s.bus == bus);
+        Ok(pos.map(|i| self.spi_buses.remove(i)))
+    }
 }
 
 /// Конфигурация для одного пина из gpio платы микроконтроллера
