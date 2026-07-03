@@ -33,6 +33,24 @@ impl Config {
         &self.peripherals
     }
 
+    fn all_uses_pins(&self) -> Vec<ChosenPin> {
+        let mut pins = Vec::new();
+
+        for pin in &self.gpio_pins {
+            pins.push(pin.pin.into());
+        }
+
+        for pin in &self.spi_buses {
+            pins.extend(pin.uses_pins());
+        }
+
+        for pin in &self.peripherals {
+            pins.extend(pin.uses_pins());
+        }
+
+        pins
+    }
+
     pub fn add_gpio_pin(&mut self, gpio_pin: PinConfig) -> ConfigResult<()> {
         if self.gpio_pins.contains(&gpio_pin) {
             return Err(ConfigError::DuplicateGPIOPin(gpio_pin.pin));
