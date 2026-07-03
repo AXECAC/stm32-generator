@@ -25,6 +25,7 @@ pub enum ChosenPinWithMode {
     StmF401(StmF401Pin, StmF4PinMode),
 }
 
+/// Шина (номер шины)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ChosenSpiBus {
     StmF401(StmF401SpiBus),

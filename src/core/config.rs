@@ -1,3 +1,5 @@
+// TODO: добавить описание модуля
+// TODO: добавить тесты для методов структур
 use crate::core::{
     UsesPins,
     errors::ConfigError,
@@ -12,7 +14,7 @@ pub struct PeripheralId(u64);
 /// Вся конфигурация платы и её переферии
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Config {
-    nex_periph_id: u64,
+    next_periph_id: u64,
     gpio_pins: Vec<PinConfig>,
     spi_buses: Vec<SpiConfig>,
     peripherals: Vec<(PeripheralId, Peripheral)>,
@@ -97,9 +99,9 @@ impl Config {
 
         self.check_conflicts_pins(&peripheral.uses_pins())?;
 
-        let periph_id = PeripheralId(self.nex_periph_id);
+        let periph_id = PeripheralId(self.next_periph_id);
         self.peripherals.push((periph_id, peripheral));
-        self.nex_periph_id += 1;
+        self.next_periph_id += 1;
         Ok(periph_id)
     }
 
