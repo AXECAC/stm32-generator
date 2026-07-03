@@ -1,4 +1,7 @@
-use crate::core::gpio::f4::{StmF4PinMode, f401::{StmF401Pin, StmF401SpiBus}};
+use crate::core::gpio::f4::{
+    StmF4PinMode,
+    f401::{StmF401Pin, StmF401SpiBus},
+};
 
 pub mod f4;
 
@@ -6,6 +9,14 @@ pub mod f4;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ChosenPin {
     StmF401(StmF401Pin),
+}
+
+impl From<ChosenPinWithMode> for ChosenPin {
+    fn from(cur_pin: ChosenPinWithMode) -> Self {
+        match cur_pin {
+            ChosenPinWithMode::StmF401(pin, _) => Self::StmF401(pin),
+        }
+    }
 }
 
 /// Пин + режим
