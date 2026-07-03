@@ -1,4 +1,5 @@
 use crate::core::{
+    UsesPins,
     errors::ConfigError,
     gpio::{ChosenPin, ChosenPinWithMode, ChosenSpiBus},
     peripherals::Peripheral,
@@ -55,9 +56,24 @@ pub struct SpiConfig {
     pub bus: ChosenSpiBus,
     pub frequency_mhz: u32,
     pub mode: SpiMode,
-    pub sck: ChosenPin, // просто идентификатор пина
+    pub sck: ChosenPin,
     pub miso: Option<ChosenPin>,
     pub mosi: Option<ChosenPin>,
+}
+
+impl UsesPins for SpiConfig {
+    fn uses_pins(&self) -> Vec<ChosenPin> {
+        let mut pins = vec![self.sck];
+
+        if let Some(miso) = self.miso {
+            pins.push(miso);
+        }
+        if let Some(mosi) = self.mosi {
+            pins.push(mosi);
+        }
+
+        pins
+    }
 }
 
 /// Конфигурация шины SPI
