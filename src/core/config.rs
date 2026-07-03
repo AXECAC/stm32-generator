@@ -51,6 +51,16 @@ impl Config {
         pins
     }
 
+    fn check_conflicts_pins(&self, new_pins: &[ChosenPin]) -> ConfigResult<()> {
+        let uses = self.all_uses_pins();
+        for pin in new_pins {
+            if uses.contains(pin) {
+                return Err(ConfigError::PinConflict(*pin));
+            }
+        }
+        Ok(())
+    }
+
     pub fn add_gpio_pin(&mut self, gpio_pin: PinConfig) -> ConfigResult<()> {
         if self.gpio_pins.contains(&gpio_pin) {
             return Err(ConfigError::DuplicateGPIOPin(gpio_pin.pin));
