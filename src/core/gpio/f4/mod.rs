@@ -2,7 +2,7 @@ pub mod f401;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StmF4PinMode {
-    InputMode(StmF4InputMode),
+    Input(StmF4InputMode),
     Output(StmF4OutputMode, StmF4OutputSpeed),
 }
 
