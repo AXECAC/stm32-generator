@@ -78,6 +78,20 @@ impl Config {
         self.spi_buses.push(spi);
         Ok(())
     }
+
+    pub fn add_peripheral(&mut self, peripheral: Peripheral) -> ConfigResult<()> {
+        if !self
+            .spi_buses
+            .iter()
+            .any(|spi| spi.bus == peripheral.spi_bus())
+        {
+            return Err(ConfigError::SpiBusNotFound(peripheral.spi_bus()));
+        }
+
+        self.check_conflicts_pins(&peripheral.uses_pins())?;
+        self.peripherals.push(peripheral);
+        Ok(())
+    }
 }
 
 /// Конфигурация для одного пина из gpio платы микроконтроллера
