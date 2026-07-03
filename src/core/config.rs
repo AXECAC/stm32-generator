@@ -62,10 +62,7 @@ impl Config {
     }
 
     pub fn add_gpio_pin(&mut self, gpio_pin: PinConfig) -> ConfigResult<()> {
-        if self.gpio_pins.contains(&gpio_pin) {
-            return Err(ConfigError::DuplicateGPIOPin(gpio_pin.pin));
-        }
-
+        self.check_conflicts_pins(&[gpio_pin.pin.into()])?;
         self.gpio_pins.push(gpio_pin);
         Ok(())
     }
