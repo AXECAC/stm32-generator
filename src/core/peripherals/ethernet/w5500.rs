@@ -36,9 +36,6 @@ pub struct W5500Config {
     pub cs: ChosenPin,  // Chip Select
     pub rst: ChosenPin, // Hardware Reset
 
-    /// Настройки шины
-    pub spi_frequency_mhz: u32,
-
     pub network: NetworkConfig,
 
     /// Режим работы сокета
