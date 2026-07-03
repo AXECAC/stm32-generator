@@ -21,14 +21,17 @@ impl Config {
         Self::default()
     }
 
+    /// Возвращает слайс gpio пинов из [`Config`].
     pub fn gpio(&self) -> &[PinConfig] {
         &self.gpio_pins
     }
 
+    /// Возвращает слайс spi шин из [`Config`].
     pub fn spi(&self) -> &[SpiConfig] {
         &self.spi_buses
     }
 
+    /// Возвращает слайс peripherals из [`Config`].
     pub fn peripherals(&self) -> &[Peripheral] {
         &self.peripherals
     }
@@ -92,6 +95,12 @@ impl Config {
         self.check_conflicts_pins(&peripheral.uses_pins())?;
         self.peripherals.push(peripheral);
         Ok(())
+    }
+
+    /// Удаляет gpio пин по его идентификатору.
+    pub fn remove_gpio_pin(&mut self, pin: &ChosenPin) -> Option<PinConfig> {
+        let pos = self.gpio_pins.iter().position(|p| *pin == p.pin.into())?;
+        Some(self.gpio_pins.remove(pos))
     }
 }
 
