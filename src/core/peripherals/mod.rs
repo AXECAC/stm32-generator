@@ -1,10 +1,18 @@
-use crate::core::{UsesPins, peripherals::ethernet::w5500::W5500Config};
+use crate::core::{UsesPins, gpio::ChosenSpiBus, peripherals::ethernet::w5500::W5500Config};
 
 pub mod ethernet;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Peripheral {
     W5500(W5500Config),
+}
+
+impl Peripheral {
+    pub fn spi_bus(&self) -> ChosenSpiBus {
+        match self {
+            Self::W5500(w5500) => w5500.spi_bus,
+        }
+    }
 }
 
 impl UsesPins for Peripheral {
