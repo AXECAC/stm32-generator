@@ -6,6 +6,8 @@ use crate::core::{
 };
 
 type ConfigResult<T> = Result<T, ConfigError>;
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PeripheralId(u64);
 
 /// Вся конфигурация платы и её переферии
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
