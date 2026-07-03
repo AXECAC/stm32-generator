@@ -53,11 +53,12 @@ impl Config {
     }
 
     /// Проверка повторного использования [`ChosenPin`]
+    /// Возвращает ошибку, если один из пинов уже используется
     fn check_conflicts_pins(&self, new_pins: &[ChosenPin]) -> ConfigResult<()> {
         let uses = self.all_uses_pins();
         for pin in new_pins {
             if uses.contains(pin) {
-                return Err(ConfigError::PinConflict(*pin));
+                return Err(ConfigError::PinAlreadyInUse(*pin));
             }
         }
         Ok(())

@@ -11,6 +11,9 @@ pub enum ConfigError {
     #[error("SPI шина использованная в переферии не найдена: {0:?}")]
     SpiBusNotFound(ChosenSpiBus),
 
-    #[error("Конфликт в использовании уже занятого пина: {0:?}")]
-    PinConflict(ChosenPin),
+    #[error("Пин уже используется: {0:?}")]
+    PinAlreadyInUse(ChosenPin),
+
+    #[error("SPI шина используется периферией, удалите сначала её: {0:?}")]
+    SpiBusInUse(ChosenSpiBus),
 }
