@@ -1,6 +1,10 @@
 use std::net::Ipv4Addr;
 
-use crate::core::{gpio::{ChosenPin, ChosenSpiBus}, peripherals::ethernet::MacAddr};
+use crate::core::{
+    UsesPins,
+    gpio::{ChosenPin, ChosenSpiBus},
+    peripherals::ethernet::MacAddr,
+};
 
 /// Сетевые параметры
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -39,4 +43,10 @@ pub struct W5500Config {
 
     /// Режим работы сокета
     pub socket_mode: SocketMode,
+}
+
+impl UsesPins for W5500Config {
+    fn uses_pins(&self) -> Vec<ChosenPin> {
+        vec![self.cs, self.rst]
+    }
 }
