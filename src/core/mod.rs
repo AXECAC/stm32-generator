@@ -4,6 +4,7 @@ pub mod config;
 pub mod gpio;
 pub mod peripherals;
 pub mod errors;
+pub mod worker;
 
 /// Объект может выдать все, используемые им пины [`ChosenPin`]
 ///
