@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 authors = [
   "aragami3070 <smirnov17612@gmail.com>",
-  "NomenConservandum hramov.sanya2018@yandex.ru"
+  "NomenConservandum hramov.sanya2018@yandex.ru",
 ]
 
 [dependencies]
@@ -18,6 +18,7 @@ crossbeam-channel = "0.5.15"
 minijinja = { version = "2.21.0", features = ["json"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.150"
-include_dir = { version = "0.7.4", features = ["glob"]}
+include_dir = { version = "0.7.4", features = ["glob"] }
 
 thiserror = "2.0.18"
+strum = { version = "0.28.0", features = ["derive"] }
