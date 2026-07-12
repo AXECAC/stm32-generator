@@ -17,3 +17,7 @@ pub enum ConfigError {
     #[error("SPI шина используется периферией, удалите сначала её: {0:?}")]
     SpiBusInUse(ChosenSpiBus),
 }
+
+/// Ошибки генерации проекта
+#[derive(Debug, Error, Clone)]
+pub enum GeneratorError {}
