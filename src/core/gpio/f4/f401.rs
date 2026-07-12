@@ -1,4 +1,7 @@
+use strum::{EnumString, IntoStaticStr, VariantNames};
+
 /// Распиновка под STM32F401 (в частности под black pill)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, VariantNames, IntoStaticStr)]
 pub enum StmF401Pin {
     A0,
     A1,
@@ -39,4 +42,14 @@ pub enum StmF401Pin {
 
     H0,
     H1,
+}
+
+/// Доступные SPI для STM32F401
+#[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, VariantNames, IntoStaticStr)]
+pub enum StmF401SpiBus {
+    SPI1,
+    SPI2,
+    SPI3,
+    SPI4,
+    SPI5,
 }
