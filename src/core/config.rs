@@ -1,3 +1,5 @@
+use serde::Serialize;
+
 // TODO: добавить описание модуля
 // TODO: добавить тесты для методов структур
 use crate::core::{
@@ -8,11 +10,12 @@ use crate::core::{
 };
 
 type ConfigResult<T> = Result<T, ConfigError>;
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct PeripheralId(u64);
 
 /// Вся конфигурация платы и её переферии
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize)]
 pub struct Config {
     next_periph_id: u64,
     gpio_pins: Vec<PinConfig>,
@@ -130,14 +133,14 @@ impl Config {
 }
 
 /// Конфигурация для одного пина из gpio платы микроконтроллера
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct PinConfig {
     pub pin: ChosenPinWithMode,
     pub label: Option<String>,
 }
 
 /// Конфигурация периферии
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SpiConfig {
     pub bus: ChosenSpiBus,
     pub frequency_mhz: u32,
@@ -163,7 +166,7 @@ impl UsesPins for SpiConfig {
 }
 
 /// Конфигурация шины SPI
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum SpiMode {
     /// Polarity: IdleLow (CPOL=0)
     /// Phase CaptureOnFirstTransition (CPHA=0)

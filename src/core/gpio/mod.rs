@@ -3,11 +3,12 @@ use crate::core::gpio::f4::{
     f401::{StmF401Pin, StmF401SpiBus},
 };
 use strum::{IntoStaticStr, VariantNames};
+use serde::Serialize;
 
 pub mod f4;
 
 /// Пин
-#[derive(Debug, Clone, Copy, PartialEq, Eq, VariantNames, IntoStaticStr)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, VariantNames, IntoStaticStr, Serialize)]
 pub enum ChosenPin {
     StmF401(StmF401Pin),
 }
@@ -21,13 +22,13 @@ impl From<ChosenPinWithMode> for ChosenPin {
 }
 
 /// Пин + режим
-#[derive(Debug, Clone, Copy, PartialEq, Eq, VariantNames, IntoStaticStr)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, VariantNames, IntoStaticStr, Serialize)]
 pub enum ChosenPinWithMode {
     StmF401(StmF401Pin, StmF4PinMode),
 }
 
 /// Шина (номер шины)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, VariantNames, IntoStaticStr)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, VariantNames, IntoStaticStr, Serialize)]
 pub enum ChosenSpiBus {
     StmF401(StmF401SpiBus),
 }
