@@ -45,7 +45,7 @@ impl Config {
     }
 
     /// Возвращает список всех использованных пинов с gpio, spi и переферии
-    fn all_uses_pins(&self) -> Vec<ChosenPin> {
+    pub fn all_uses_pins(&self) -> Vec<ChosenPin> {
         let mut pins = Vec::new();
 
         for pin in &self.gpio_pins {
