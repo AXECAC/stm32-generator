@@ -104,4 +104,50 @@ impl TemplateContext {
         }
         gpio_pins
     }
+
+    /// Собирает контекст для SPI шин, включая формирование строкового
+    /// кортежа пинов (с подстановкой `None` для отсутствующих MISO/MOSI).
+    fn build_spi_ctx(config: &Config) -> Vec<SpiCtx> {
+        let mut spis = Vec::new();
+        for spi in config.spi() {
+            let (bus_name, pac_bus) = match &spi.bus {
+                ChosenSpiBus::StmF401(b) => {
+                    let s: &'static str = b.into(); // "SPI1", "SPI2"
+                    (s.to_lowercase(), s.to_string())
+                }
+            };
+
+            let (polarity, phase) = spi.mode.template_vars();
+
+            let sck = PinCtx::new(&spi.sck);
+            let miso = spi.miso.as_ref().map(PinCtx::new);
+            let mosi = spi.mosi.as_ref().map(PinCtx::new);
+
+            // Собираем кортеж пинов для stm32f4xx_hal
+            let miso_str = if miso.is_some() {
+                format!("miso_{}", bus_name)
+            } else {
+                "None".to_string()
+            };
+            let mosi_str = if mosi.is_some() {
+                format!("mosi_{}", bus_name)
+            } else {
+                "None".to_string()
+            };
+            let pins_tuple = format!("sck_{}, {}, {}", bus_name, miso_str, mosi_str);
+
+            spis.push(SpiCtx {
+                bus_name,
+                pac_bus,
+                sck,
+                miso,
+                mosi,
+                polarity: polarity.to_string(),
+                phase: phase.to_string(),
+                frequency_mhz: spi.frequency_mhz,
+                pins_tuple,
+            });
+        }
+        spis
+    }
 }
