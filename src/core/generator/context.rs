@@ -28,6 +28,20 @@ pub struct SpiCtx {
     pub frequency_mhz: u32,
     pub pins_tuple: String,
 }
+
+#[derive(Serialize)]
+pub struct W5500Ctx {
+    pub id: u64,
+    pub spi_bus: String,
+    pub cs: PinCtx,
+    pub rst: PinCtx,
+    pub mac: [u8; 6],
+    pub ip: [u8; 4],
+    pub subnet: [u8; 4],
+    pub gateway: [u8; 4],
+    pub socket_mode: SocketModeCtx,
+}
+
 #[derive(Serialize, Default)]
 pub struct SocketModeCtx {
     pub tcp_server: Option<TcpServerCtx>,
