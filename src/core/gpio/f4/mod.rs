@@ -48,6 +48,17 @@ pub enum StmF4OutputSpeed {
     VeryHigh,
 }
 
+impl StmF4OutputSpeed {
+    pub fn speed_name(&self) -> &'static str {
+        match self {
+            Self::Low => "Low",
+            Self::Medium => "Medium",
+            Self::High => "High",
+            Self::VeryHigh => "VeryHigh",
+        }
+    }
+}
+
 /// Тип выхода GPIO на STM32F4.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, VariantNames, IntoStaticStr, Serialize)]
 pub enum StmF4OutputMode {
