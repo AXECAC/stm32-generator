@@ -14,6 +14,12 @@ type ConfigResult<T> = Result<T, ConfigError>;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct PeripheralId(u64);
 
+impl PeripheralId {
+    pub fn get(&self) -> u64 {
+        self.0
+    }
+}
+
 /// Вся конфигурация платы и её переферии
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize)]
 pub struct Config {
@@ -169,7 +175,7 @@ impl UsesPins for SpiConfig {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum SpiMode {
     /// Polarity: IdleLow (CPOL=0)
-    /// Phase CaptureOnFirstTransition (CPHA=0)
+    /// Phase: CaptureOnFirstTransition (CPHA=0)
     Mode0,
     /// Polarity: IdleLow (CPOL=0)
     /// Phase: CaptureOnSecondTransition (CPHA=1)
