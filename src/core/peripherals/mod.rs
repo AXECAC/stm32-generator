@@ -1,8 +1,9 @@
 use crate::core::{UsesPins, gpio::ChosenSpiBus, peripherals::ethernet::w5500::W5500Config};
+use serde::Serialize;
 
 pub mod ethernet;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum Peripheral {
     W5500(W5500Config),
 }

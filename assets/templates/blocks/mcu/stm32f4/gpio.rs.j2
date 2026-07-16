@@ -1,0 +1,37 @@
+    // Включение тактирования (RCC) и разбивка используемых GPIO портов
+{%- for port in used_ports %}
+    let gpio{{ port }} = dp.GPIO{{ port | upper }}.split(&mut rcc);
+{%- endfor %}
+
+    // Настройка пользовательских GPIO пинов
+{%- for pin in gpio_pins %}
+    let mut {{ pin.label }} = gpio{{ pin.port }}.p{{ pin.port }}{{ pin.pin_num }}.{{ pin.method }}();
+{%- if pin.is_output and pin.speed %}
+    {{ pin.label }}.set_speed(stm32f4xx_hal::gpio::Speed::{{ pin.speed }});
+{%- endif %}
+{%- endfor %}
+
+    // Настройка шин SPI
+{%- for spi in spis %}
+    // Пины для шины {{ spi.bus_name | upper }}
+    let sck_{{ spi.bus_name }} = gpio{{ spi.sck.port }}.p{{ spi.sck.port }}{{ spi.sck.pin_num }}.into_alternate();
+{%- if spi.miso %}
+    let miso_{{ spi.bus_name }} = gpio{{ spi.miso.port }}.p{{ spi.miso.port }}{{ spi.miso.pin_num }}.into_alternate();
+{%- endif %}
+{%- if spi.mosi %}
+    let mosi_{{ spi.bus_name }} = gpio{{ spi.mosi.port }}.p{{ spi.mosi.port }}{{ spi.mosi.pin_num }}.into_alternate();
+{%- endif %}
+
+    let spi_mode_{{ spi.bus_name }} = Mode {
+        polarity: Polarity::{{ spi.polarity }},
+        phase: Phase::{{ spi.phase }},
+    };
+
+    let {{ spi.bus_name }} = Spi::new(
+        dp.{{ spi.pac_bus }},
+        ({{ spi.pins_tuple }}),
+        spi_mode_{{ spi.bus_name }},
+        {{ spi.frequency_mhz }}.MHz(),
+        &mut rcc,
+    );
+{%- endfor %}

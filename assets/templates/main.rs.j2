@@ -1,0 +1,46 @@
+#![no_std]
+#![no_main]
+
+// Обработчик паники. В случае фатальной ошибки исполнения программа войдет в бесконечный цикл.
+use panic_halt as _;
+use cortex_m_rt::entry;
+
+// Инициализация базовых импортов для выбранного семейства МК
+{% if mcu_family == "stm32f4" -%}
+{% include "blocks/mcu/stm32f4/imports.rs.j2" %}
+{%- endif %}
+
+{% if w5500_peripherals | length > 0 -%}
+// Импорты для модуля W5500
+{% include "blocks/peripherals/W5500/imports.rs.j2" %}
+{%- endif %}
+
+#[entry]
+fn main() -> ! {
+    // 1. Базовая инициализация МК (получение Peripherals, настройка RCC, SysTick/Delay)
+    {% if mcu_family == "stm32f4" -%}
+    {% include "blocks/mcu/stm32f4/init.rs.j2" %}
+    {%- endif %}
+
+    // 2. Инициализация портов (включение тактирования портов, настройка GPIO и SPI)
+    {% if mcu_family == "stm32f4" -%}
+    {% include "blocks/mcu/stm32f4/gpio.rs.j2" %}
+    {%- endif %}
+
+    // 3. Инициализация периферии
+    {% for peripheral in w5500_peripherals -%}
+    {% include "blocks/peripherals/W5500/init.rs.j2" %}
+    {%- endfor %}
+
+    loop {
+        // 4. Основной цикл (опрос периферии, обработка прерываний стейт-машины)
+        {% if w5500_peripherals | length == 1 -%}
+        {% set peripheral = w5500_peripherals[0] %}
+        {% include "blocks/peripherals/W5500/logic_single.rs.j2" %}
+        {%- elif w5500_peripherals | length == 2 -%}
+        {% set peripheral1 = w5500_peripherals[0] %}
+        {% set peripheral2 = w5500_peripherals[1] %}
+        {% include "blocks/peripherals/W5500/logic_bridge.rs.j2" %}
+        {%- endif %}
+    }
+}

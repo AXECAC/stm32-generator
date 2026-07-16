@@ -1,7 +1,8 @@
 use strum::{EnumString, IntoStaticStr, VariantNames};
+use serde::Serialize;
 pub mod f401;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, VariantNames, IntoStaticStr)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, VariantNames, IntoStaticStr, Serialize)]
 pub enum StmF4PinMode {
     #[strum(to_string = "Input")]
     Input(StmF4InputMode),
@@ -9,7 +10,7 @@ pub enum StmF4PinMode {
     Output(StmF4OutputMode, StmF4OutputSpeed),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, VariantNames, IntoStaticStr)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, VariantNames, IntoStaticStr, Serialize)]
 pub enum StmF4InputMode {
     Floating,
 
@@ -20,7 +21,7 @@ pub enum StmF4InputMode {
     PullDown,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, VariantNames, IntoStaticStr)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, VariantNames, IntoStaticStr, Serialize)]
 pub enum StmF4OutputSpeed {
     /// ~4 МГц. Для медленных сигналов.
     Low,
@@ -38,7 +39,7 @@ pub enum StmF4OutputSpeed {
 }
 
 /// Тип выхода GPIO на STM32F4.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, VariantNames, IntoStaticStr)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, VariantNames, IntoStaticStr, Serialize)]
 pub enum StmF4OutputMode {
     /// Активно управляет и высоким, и низким уровнем.
     /// Стандартный режим для большинства задач.

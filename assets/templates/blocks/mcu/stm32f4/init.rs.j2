@@ -1,0 +1,10 @@
+    // Обобщенная низкоуровневая периферия
+    let cp = cortex_m::Peripherals::take().unwrap();
+    // Периферия stm32f4
+    let dp = pac::Peripherals::take().unwrap();
+
+    // Инициализация задержек (базовая тактовая частота 16MHz)
+    let mut delay = Delay::new(cp.SYST, 16_000_000);
+
+    // Инициализация модуля Reset and Clock Control (RCC)
+    let mut rcc = dp.RCC.constrain();

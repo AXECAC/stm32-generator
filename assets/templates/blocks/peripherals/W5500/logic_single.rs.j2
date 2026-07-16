@@ -1,0 +1,54 @@
+{%- if peripheral.socket_mode.TcpServer %}
+        // Чтение аппаратно-формируемого статуса сокета W5500 #{{ peripheral.id }}
+        let status_{{ peripheral.id }} = w5500_{{ peripheral.id }}
+            .sn_sr(TCP_SOCKET_{{ peripheral.id }})
+            .unwrap()
+            .unwrap_or(SocketStatus::Closed);
+
+        match status_{{ peripheral.id }} {
+            // Состояние покоя. Сокет должен быть переведен в режим прослушивания порта.
+            SocketStatus::Closed => {
+                w5500_{{ peripheral.id }}.tcp_listen(TCP_SOCKET_{{ peripheral.id }}, SERVER_PORT_{{ peripheral.id }}).unwrap();
+            }
+
+            // Обработка запроса по tcp
+            SocketStatus::Established | SocketStatus::CloseWait => {
+                let mut buf = [0u8; 64];
+                if let Ok(bytes_read) = w5500_{{ peripheral.id }}.tcp_read(TCP_SOCKET_{{ peripheral.id }}, &mut buf) {
+                    if bytes_read > 0 {
+                        // TODO: Добавьте вашу бизнес-логику обработки входящих данных здесь
+                        
+                        /* Пример обработки данных:
+                        for i in 0..bytes_read {
+                            match buf[i as usize] {
+                                b'0' => {
+                                    // my_pin.set_low();
+                                    let _ = w5500_{{ peripheral.id }}.tcp_write(TCP_SOCKET_{{ peripheral.id }}, b"LED ON\n");
+                                }
+                                b'1' => {
+                                    // my_pin.set_high();
+                                    let _ = w5500_{{ peripheral.id }}.tcp_write(TCP_SOCKET_{{ peripheral.id }}, b"LED OFF\n");
+                                }
+                                _ => {}
+                            }
+                        }
+                        */
+                    }
+                }
+
+                // Если во время обработки одного из запросов пришел еще один
+                // (или если клиент быстро закрыл соединение)
+                if status_{{ peripheral.id }} == SocketStatus::CloseWait {
+                    close_socket_{{ peripheral.id }}!();
+                }
+            }
+
+            SocketStatus::TimeWait => {
+                close_socket_{{ peripheral.id }}!();
+            }
+
+            // Прочие транзитные состояния (Listen, SynSent, SynRecv) не требуют
+            // программного вмешательства - аппаратура отрабатывает их самостоятельно.
+            _ => {}
+        }
+{%- endif %}
