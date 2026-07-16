@@ -10,6 +10,15 @@ pub enum StmF4PinMode {
     Output(StmF4OutputMode, StmF4OutputSpeed),
 }
 
+impl StmF4PinMode {
+    pub fn template_vars(&self) -> (&'static str, bool, Option<&'static str>) {
+        match self {
+            Self::Input(input_mode) => (input_mode.method_name(), false, None),
+            Self::Output(out_mode, out_speed) => (out_mode.method_name(), true, Some(out_speed.speed_name())),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, VariantNames, IntoStaticStr, Serialize)]
 pub enum StmF4InputMode {
     Floating,
