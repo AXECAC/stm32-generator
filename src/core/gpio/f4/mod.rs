@@ -21,6 +21,16 @@ pub enum StmF4InputMode {
     PullDown,
 }
 
+impl StmF4InputMode {
+    pub fn method_name(&self) -> &'static str {
+        match self {
+            Self::Floating => "into_floating_input",
+            Self::PullUp => "into_pull_up_input",
+            Self::PullDown => "into_pull_down_input",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, VariantNames, IntoStaticStr, Serialize)]
 pub enum StmF4OutputSpeed {
     /// ~4 МГц. Для медленных сигналов.
