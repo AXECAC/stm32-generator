@@ -83,3 +83,25 @@ pub struct TcpServerCtx {
     pub port: u16,
     pub socket_num: u8,
 }
+
+impl TemplateContext {
+    /// Подготавливает контекст для всех GPIO пинов, конвертируя
+    /// сложные Enum'ы (режимы и скорости) в строковые эквиваленты.
+    fn build_gpio_ctx(config: &Config) -> Vec<GpioPinCtx> {
+        let mut gpio_pins = Vec::new();
+        for p in config.gpio() {
+            let pin_ctx = PinCtx::new(&p.pin.pin());
+            let (method, is_output, speed) = p.pin.template_vars();
+
+            gpio_pins.push(GpioPinCtx {
+                label: p.label(),
+                port: pin_ctx.port,
+                pin_num: pin_ctx.pin_num,
+                method: method.to_string(),
+                is_output,
+                speed: speed.map(|s| s.to_string()),
+            });
+        }
+        gpio_pins
+    }
+}
