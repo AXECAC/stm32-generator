@@ -3,8 +3,9 @@ use crate::core::generator::context::TemplateContext;
 use minijinja::Environment;
 use std::collections::HashMap;
 
-pub mod context;
-pub mod templates;
+pub(crate) mod context;
+pub(crate) mod templates;
+pub(crate) mod writer;
 
 /// Создает [`minijinja::Environment`] и регистрирует в нём все статические шаблоны.
 ///
