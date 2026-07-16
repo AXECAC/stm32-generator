@@ -10,6 +10,10 @@ pub mod templates;
 ///
 /// Имена шаблонов сохраняют суффикс `.j2`, так как они используются для связи
 /// модулей внутри самих шаблонов (через `{% include %}`).
+///
+/// # Errors
+/// Функция вернет ошибку [`GeneratorError::RenderError`], если синтаксис j2
+/// файлов - не верный
 fn build_environment<'a>() -> Result<Environment<'a>, GeneratorError> {
     let mut env = Environment::new();
 
@@ -58,8 +62,8 @@ type Code = String;
 /// Рендерит все файлы проекта, подставляя переданный `TemplateContext`.
 ///
 /// # Errors
-/// Функция вернет ошибку [`GeneratorError::RenderError`], если рендер окажется
-/// неудачным (в .j2 файле не закрытая скобка, не правильный формат и тп)
+/// Функция вернет ошибку [`GeneratorError::RenderError`], если нужные файлы
+/// не будут найдены
 fn render_templates(
     env: &Environment,
     context: &TemplateContext,
