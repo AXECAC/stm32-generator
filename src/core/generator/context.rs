@@ -16,6 +16,21 @@ pub struct PinCtx {
     pub pin_num: String,
 }
 
+impl PinCtx {
+    pub fn new(pin: &ChosenPin) -> Self {
+        match pin {
+            ChosenPin::StmF401(p) => Self::from_str(p.into()),
+        }
+    }
+
+    fn from_str(s: &'static str) -> Self {
+        Self {
+            port: s[..1].to_lowercase(),
+            pin_num: s[1..].to_string(),
+        }
+    }
+}
+
 #[derive(Serialize)]
 pub struct SpiCtx {
     pub bus_name: String,
