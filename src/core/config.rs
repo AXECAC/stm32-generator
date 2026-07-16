@@ -187,3 +187,14 @@ pub enum SpiMode {
     /// Phase: CaptureOnSecondTransition (CPHA=1)
     Mode3,
 }
+
+impl SpiMode {
+    pub fn template_vars(&self) -> (&'static str, &'static str) {
+        match self {
+            Self::Mode0 => ("IdleLow", "CaptureOnFirstTransition"),
+            Self::Mode1 => ("IdleLow", "CaptureOnSecondTransition"),
+            Self::Mode2 => ("IdleHigh", "CaptureOnFirstTransition"),
+            Self::Mode3 => ("IdleHigh", "CaptureOnSecondTransition"),
+        }
+    }
+}
