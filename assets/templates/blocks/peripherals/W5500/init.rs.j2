@@ -28,3 +28,21 @@
 
     let gateway_ip_{{ peripheral.id }} = Ipv4Addr::new({{ peripheral.gateway[0] }}, {{ peripheral.gateway[1] }}, {{ peripheral.gateway[2] }}, {{ peripheral.gateway[3] }});
     w5500_{{ peripheral.id }}.set_gar(&gateway_ip_{{ peripheral.id }}).unwrap();
+
+{% if peripheral.socket_mode.TcpServer %}
+    // Настройки сокета для режима TCP Server
+    const TCP_SOCKET_{{ peripheral.id }}: Sn = Sn::Sn{{ peripheral.socket_mode.TcpServer.socket_num }};
+    const SERVER_PORT_{{ peripheral.id }}: u16 = {{ peripheral.socket_mode.TcpServer.port }};
+
+    macro_rules! close_socket_{{ peripheral.id }} {
+        () => {
+            w5500_{{ peripheral.id }}
+                .set_sn_cr(TCP_SOCKET_{{ peripheral.id }}, w5500_ll::SocketCommand::Disconnect)
+                .unwrap();
+            delay.delay_ms(100_u32);
+            w5500_{{ peripheral.id }}
+                .set_sn_cr(TCP_SOCKET_{{ peripheral.id }}, w5500_ll::SocketCommand::Close)
+                .unwrap();
+        };
+    }
+{% endif %}
