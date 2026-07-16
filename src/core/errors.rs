@@ -23,4 +23,7 @@ pub enum ConfigError {
 
 /// Ошибки генерации проекта
 #[derive(Debug, Error, Clone)]
-pub enum GeneratorError {}
+pub enum GeneratorError {
+    #[error("Невозможно определить семейство микроконтроллера: конфигурация пуста")]
+    EmptyConfig,
+}
