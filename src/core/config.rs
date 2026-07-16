@@ -83,6 +83,12 @@ impl Config {
 
     pub fn add_gpio_pin(&mut self, gpio_pin: PinConfig) -> ConfigResult<()> {
         self.check_conflicts_pins(&[gpio_pin.pin.into()])?;
+
+        let new_label = gpio_pin.label();
+        if self.gpio_pins.iter().any(|p| p.label() == new_label) {
+            return Err(ConfigError::LabelAlreadyInUse(new_label));
+        }
+
         self.gpio_pins.push(gpio_pin);
         Ok(())
     }
