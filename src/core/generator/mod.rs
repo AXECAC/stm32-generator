@@ -55,10 +55,10 @@ fn build_environment<'a>() -> Result<Environment<'a>, GeneratorError> {
 }
 
 /// Финальный путь к файлу в проекте
-type ProjectPath = String;
+pub type ProjectPath = String;
 
 /// Готовый сгенерированный, с помощью [`minijinja`], исходный код
-type Code = String;
+pub type Code = String;
 
 /// Рендерит все файлы проекта, подставляя переданный `TemplateContext`.
 ///
