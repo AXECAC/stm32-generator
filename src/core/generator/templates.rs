@@ -4,6 +4,7 @@ pub(crate) const CARGO_CONFIG_TOML: &str = include_str!("../../../assets/templat
 pub(crate) const MEMORY_X: &str = include_str!("../../../assets/templates/memory.x.j2");
 pub(crate) const JUSTFILE: &str = include_str!("../../../assets/templates/justfile.j2");
 pub(crate) const MAIN_RS: &str = include_str!("../../../assets/templates/main.rs.j2");
+pub(crate) const GITIGNORE: &str = include_str!("../../../assets/templates/.gitignore.j2");
 
 // Блоки MCU (STM32F4)
 pub(crate) const MCU_STM32F4_IMPORTS: &str = include_str!("../../../assets/templates/blocks/mcu/stm32f4/imports.rs.j2");
