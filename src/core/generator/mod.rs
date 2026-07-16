@@ -83,3 +83,11 @@ fn render_templates(
 
     Ok(files)
 }
+
+/// Рендер проект из контекста шаблона в [`HashMap<ProjectPath, Code>`]
+///
+/// Создает окружение, рендерит шаблоны и возвращает словарь готовых файлов.
+pub fn render(context: &TemplateContext) -> Result<HashMap<ProjectPath, Code>, GeneratorError> {
+    let env = build_environment()?;
+    render_templates(&env, context)
+}
