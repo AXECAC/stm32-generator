@@ -1,0 +1,6 @@
+use w5500_hl::ll::{Registers, Sn, SocketStatus};
+{% if has_w5500_tcp -%}
+use w5500_hl::Tcp;
+{%- endif %}
+use w5500_ll::eh1::vdm::W5500;
+use w5500_ll::net::{Eui48Addr, Ipv4Addr};
