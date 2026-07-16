@@ -3,6 +3,8 @@ use crossbeam_channel::Receiver;
 use crate::core::{config::Config, errors::GeneratorError};
 use std::path::PathBuf;
 
+use crate::core::generator::{context::TemplateContext, render, writer::create_project};
+
 /// Сообщения, в GUI о процессе генерации проекта
 #[derive(Debug)]
 pub enum WorkerMessage {
@@ -21,33 +23,44 @@ pub fn start_generation(config: Config, output_dir: PathBuf) -> Receiver<WorkerM
     let (sender, receiver) = crossbeam_channel::unbounded();
 
     std::thread::spawn(move || {
-        // --- ЗАГЛУШКА ДЛЯ РАЗРАБОТКИ GUI ---
-
         let _ = sender.send(WorkerMessage::Progress {
             percent: 10,
-            status: "Подготовка шаблонов...".to_string(),
+            status: "Сборка контекста шаблона...".to_string(),
         });
-        std::thread::sleep(std::time::Duration::from_millis(500));
+
+        let context = match TemplateContext::from_config(&config) {
+            Ok(ctx) => ctx,
+            Err(e) => {
+                let _ = sender.send(WorkerMessage::Error { message: e });
+                return;
+            }
+        };
 
         let _ = sender.send(WorkerMessage::Progress {
             percent: 50,
-            status: "Генерация кода (main.rs)...".to_string(),
+            status: "Рендеринг шаблонов Jinja...".to_string(),
         });
-        std::thread::sleep(std::time::Duration::from_millis(500));
+
+        let files = match render(&context) {
+            Ok(f) => f,
+            Err(e) => {
+                let _ = sender.send(WorkerMessage::Error { message: e });
+                return;
+            }
+        };
 
         let _ = sender.send(WorkerMessage::Progress {
             percent: 90,
-            status: "Сохранение файлов на диск...".to_string(),
+            status: "Запись файлов на диск...".to_string(),
         });
-        std::thread::sleep(std::time::Duration::from_millis(500));
 
-        // Симуляция успешного завершения
+        if let Err(e) = create_project(&output_dir, files) {
+            let _ = sender.send(WorkerMessage::Error { message: e });
+            return;
+        }
+
+        // Успешное завершение
         let _ = sender.send(WorkerMessage::Done { output_dir });
-
-        // Симуляция ошибки (для теста в GUI):
-        // let _ = sender.send(WorkerMessage::Error {
-        //     message: "Отказано в доступе при записи в папку".to_string()
-        // });
     });
 
     receiver
