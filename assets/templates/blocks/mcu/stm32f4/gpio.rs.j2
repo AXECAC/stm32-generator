@@ -1,0 +1,12 @@
+    // Включение тактирования (RCC) и разбивка используемых GPIO портов
+{%- for port in used_ports %}
+    let gpio{{ port }} = dp.GPIO{{ port | upper }}.split(&mut rcc);
+{%- endfor %}
+
+    // Настройка пользовательских GPIO пинов
+{%- for p in gpio_pins %}
+    let mut {{ p.label }} = gpio{{ p.port }}.p{{ p.port }}{{ p.pin_num }}.{{ p.method }}();
+{%- if p.is_output and p.speed %}
+    {{ p.label }}.set_speed(stm32f4xx_hal::gpio::Speed::{{ p.speed }});
+{%- endif %}
+{%- endfor %}
