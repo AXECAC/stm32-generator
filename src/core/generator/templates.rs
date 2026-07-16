@@ -9,3 +9,9 @@ pub(crate) const MAIN_RS: &str = include_str!("../../../assets/templates/main.rs
 pub(crate) const MCU_STM32F4_IMPORTS: &str = include_str!("../../../assets/templates/blocks/mcu/stm32f4/imports.rs.j2");
 pub(crate) const MCU_STM32F4_INIT: &str = include_str!("../../../assets/templates/blocks/mcu/stm32f4/init.rs.j2");
 pub(crate) const MCU_STM32F4_GPIO: &str = include_str!("../../../assets/templates/blocks/mcu/stm32f4/gpio.rs.j2");
+
+// Блоки Периферии (W5500)
+pub(crate) const PERIPHERAL_W5500_IMPORTS: &str = include_str!("../../../assets/templates/blocks/peripherals/W5500/imports.rs.j2");
+pub(crate) const PERIPHERAL_W5500_INIT: &str = include_str!("../../../assets/templates/blocks/peripherals/W5500/init.rs.j2");
+pub(crate) const PERIPHERAL_W5500_LOGIC_SINGLE: &str = include_str!("../../../assets/templates/blocks/peripherals/W5500/logic_single.rs.j2");
+pub(crate) const PERIPHERAL_W5500_LOGIC_BRIDGE: &str = include_str!("../../../assets/templates/blocks/peripherals/W5500/logic_bridge.rs.j2");
