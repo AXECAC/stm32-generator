@@ -150,4 +150,45 @@ impl TemplateContext {
         }
         spis
     }
+
+    /// Подготавливает контекст для всех модулей W5500.
+    /// Возвращает вектор контекстов периферии и флаг наличия TCP сервера.
+    fn build_w5500_ctx(config: &Config) -> (Vec<W5500Ctx>, bool) {
+        let mut w5500_peripherals = Vec::new();
+        let mut has_w5500_tcp = false;
+
+        for (id, peripheral) in config.peripherals() {
+            match peripheral {
+                Peripheral::W5500(w) => {
+                    let spi_bus = match &w.spi_bus {
+                        ChosenSpiBus::StmF401(b) => {
+                            let s: &'static str = b.into();
+                            s.to_lowercase()
+                        }
+                    };
+
+                    let mut socket_mode_ctx = SocketModeCtx::default();
+                    match w.socket_mode {
+                        SocketMode::TcpServer { port, socket_num } => {
+                            has_w5500_tcp = true;
+                            socket_mode_ctx.tcp_server = Some(TcpServerCtx { port, socket_num });
+                        }
+                    }
+
+                    w5500_peripherals.push(W5500Ctx {
+                        id: id.get(),
+                        spi_bus,
+                        cs: PinCtx::new(&w.cs),
+                        rst: PinCtx::new(&w.rst),
+                        mac: w.network.mac_addr.0,
+                        ip: w.network.ip.octets(),
+                        subnet: w.network.subnet.octets(),
+                        gateway: w.network.gateway.octets(),
+                        socket_mode: socket_mode_ctx,
+                    });
+                }
+            }
+        }
+        (w5500_peripherals, has_w5500_tcp)
+    }
 }
