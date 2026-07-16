@@ -35,6 +35,14 @@ pub enum ChosenPinWithMode {
     StmF401(StmF401Pin, StmF4PinMode),
 }
 
+impl ChosenPinWithMode {
+    pub fn pin(&self) -> ChosenPin {
+        match self {
+            Self::StmF401(pin, _) => ChosenPin::StmF401(*pin),
+        }
+    }
+}
+
 /// Шина (номер шины)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, VariantNames, IntoStaticStr, Serialize)]
 pub enum ChosenSpiBus {
