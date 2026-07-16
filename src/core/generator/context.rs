@@ -123,14 +123,14 @@ impl TemplateContext {
             let miso = spi.miso.as_ref().map(PinCtx::new);
             let mosi = spi.mosi.as_ref().map(PinCtx::new);
 
-            // Собираем кортеж пинов для stm32f4xx_hal
+            // Собираем кортеж пинов
             let miso_str = if miso.is_some() {
-                format!("miso_{}", bus_name)
+                format!("Some(miso_{})", bus_name)
             } else {
                 "None".to_string()
             };
             let mosi_str = if mosi.is_some() {
-                format!("mosi_{}", bus_name)
+                format!("Some(mosi_{})", bus_name)
             } else {
                 "None".to_string()
             };
