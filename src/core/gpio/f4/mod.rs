@@ -62,3 +62,12 @@ pub enum StmF4OutputMode {
     #[strum(to_string = "Open drain")]
     OpenDrain,
 }
+
+impl StmF4OutputMode {
+    pub fn method_name(&self) -> &'static str {
+        match self {
+            Self::PushPull => "into_push_pull_output",
+            Self::OpenDrain => "into_open_drain_output",
+        }
+    }
+}
