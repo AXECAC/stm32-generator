@@ -21,6 +21,14 @@ impl From<ChosenPinWithMode> for ChosenPin {
     }
 }
 
+impl ChosenPin {
+    pub fn mcu_family(&self) -> &'static str {
+        match self {
+            Self::StmF401(_) => "stm32f4",
+        }
+    }
+}
+
 /// Пин + режим
 #[derive(Debug, Clone, Copy, PartialEq, Eq, VariantNames, IntoStaticStr, Serialize)]
 pub enum ChosenPinWithMode {
