@@ -4,7 +4,7 @@ use crate::core::{config::Config, errors::GeneratorError};
 use std::path::PathBuf;
 
 /// Сообщения, в GUI о процессе генерации проекта
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum WorkerMessage {
     /// Промежуточный прогресс, от 0 до 100, и текстовое описание этапа
     Progress { percent: u32, status: String },
