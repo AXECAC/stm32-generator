@@ -191,4 +191,34 @@ impl TemplateContext {
         }
         (w5500_peripherals, has_w5500_tcp)
     }
+
+    /// Строит контекст для Jinja из сырого конфига
+    pub fn from_config(config: &Config) -> Result<Self, GeneratorError> {
+        let mut used_ports_set = HashSet::new();
+        for pin in config.all_uses_pins() {
+            used_ports_set.insert(PinCtx::new(&pin).port);
+        }
+        let mut used_ports: Vec<String> = used_ports_set.into_iter().collect();
+        used_ports.sort();
+
+        let mcu_family = config
+            .all_uses_pins()
+            .first()
+            .map(|p| p.mcu_family())
+            .unwrap_or("stm32f4")
+            .to_string();
+
+        let gpio_pins = Self::build_gpio_ctx(config);
+        let spis = Self::build_spi_ctx(config);
+        let (w5500_peripherals, has_w5500_tcp) = Self::build_w5500_ctx(config);
+
+        Ok(Self {
+            mcu_family,
+            used_ports,
+            gpio_pins,
+            spis,
+            has_w5500_tcp,
+            w5500_peripherals,
+        })
+    }
 }
