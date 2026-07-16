@@ -145,6 +145,17 @@ pub struct PinConfig {
     pub label: Option<String>,
 }
 
+impl PinConfig {
+    pub fn label(&self) -> String {
+        self.label.clone().unwrap_or_else(|| {
+            let s: &'static str = match self.pin.pin() {
+                ChosenPin::StmF401(p) => p.into(),
+            };
+            format!("p{}", s.to_lowercase())
+        })
+    }
+}
+
 /// Конфигурация периферии
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SpiConfig {
