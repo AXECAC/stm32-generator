@@ -1,0 +1,30 @@
+    // Инициализация W5500 #{{ peripheral.id }}
+    // Пины аппаратного сброса и Chip Select
+    let mut w5500_rst_{{ peripheral.id }} = gpio{{ peripheral.rst.port }}.p{{ peripheral.rst.port }}{{ peripheral.rst.pin_num }}.into_push_pull_output();
+    let mut w5500_cs_{{ peripheral.id }} = gpio{{ peripheral.cs.port }}.p{{ peripheral.cs.port }}{{ peripheral.cs.pin_num }}.into_push_pull_output();
+    w5500_cs_{{ peripheral.id }}.set_high(); // Изначально CS в высоком уровне (неактивен)
+
+    // Ручная перезагрузка чипа W5500
+    w5500_rst_{{ peripheral.id }}.set_low();
+    delay.delay_ms(1_u32);
+    w5500_rst_{{ peripheral.id }}.set_high();
+    delay.delay_ms(1_u32);
+
+    let spi_device_{{ peripheral.id }} = embedded_hal_bus::spi::ExclusiveDevice::new_no_delay(
+        {{ peripheral.spi_bus }},
+        w5500_cs_{{ peripheral.id }}
+    ).unwrap();
+    let mut w5500_{{ peripheral.id }} = W5500::new(spi_device_{{ peripheral.id }});
+
+    // Установка сетевых параметров
+    let mac_addr_{{ peripheral.id }} = Eui48Addr::new({{ peripheral.mac[0] }}, {{ peripheral.mac[1] }}, {{ peripheral.mac[2] }}, {{ peripheral.mac[3] }}, {{ peripheral.mac[4] }}, {{ peripheral.mac[5] }});
+    w5500_{{ peripheral.id }}.set_shar(&mac_addr_{{ peripheral.id }}).unwrap();
+
+    let ip_addr_{{ peripheral.id }} = Ipv4Addr::new({{ peripheral.ip[0] }}, {{ peripheral.ip[1] }}, {{ peripheral.ip[2] }}, {{ peripheral.ip[3] }});
+    w5500_{{ peripheral.id }}.set_sipr(&ip_addr_{{ peripheral.id }}).unwrap();
+
+    let subnet_mask_{{ peripheral.id }} = Ipv4Addr::new({{ peripheral.subnet[0] }}, {{ peripheral.subnet[1] }}, {{ peripheral.subnet[2] }}, {{ peripheral.subnet[3] }});
+    w5500_{{ peripheral.id }}.set_subr(&subnet_mask_{{ peripheral.id }}).unwrap();
+
+    let gateway_ip_{{ peripheral.id }} = Ipv4Addr::new({{ peripheral.gateway[0] }}, {{ peripheral.gateway[1] }}, {{ peripheral.gateway[2] }}, {{ peripheral.gateway[3] }});
+    w5500_{{ peripheral.id }}.set_gar(&gateway_ip_{{ peripheral.id }}).unwrap();
