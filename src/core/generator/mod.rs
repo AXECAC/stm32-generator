@@ -24,6 +24,7 @@ fn build_environment<'a>() -> Result<Environment<'a>, GeneratorError> {
     env.add_template("memory.x.j2", templates::MEMORY_X)?;
     env.add_template("justfile.j2", templates::JUSTFILE)?;
     env.add_template("main.rs.j2", templates::MAIN_RS)?;
+    env.add_template(".gitignore.j2", templates::GITIGNORE)?;
 
     // Блоки MCU
     env.add_template(
@@ -85,6 +86,9 @@ fn render_templates(
 
     let main_rs = env.get_template("main.rs.j2")?.render(context)?;
     files.insert("src/main.rs".to_string(), main_rs);
+
+    let gitignore = env.get_template(".gitignore.j2")?.render(context)?;
+    files.insert(".gitignore".to_string(), gitignore);
 
     Ok(files)
 }
