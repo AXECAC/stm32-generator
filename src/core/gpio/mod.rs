@@ -41,6 +41,12 @@ impl ChosenPinWithMode {
             Self::StmF401(pin, _) => ChosenPin::StmF401(*pin),
         }
     }
+
+    pub fn template_vars(&self) -> (&'static str, bool, Option<&'static str>) {
+        match self {
+            Self::StmF401(_, mode) => mode.template_vars(),
+        }
+    }
 }
 
 /// Шина (номер шины)
