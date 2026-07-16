@@ -29,4 +29,7 @@ pub enum GeneratorError {
 
     #[error("Ошибка шаблонизатора: {0}")]
     RenderError(#[from] minijinja::Error),
+
+    #[error("Ошибка файловой системы: {0}")]
+    IoError(#[from] std::io::Error),
 }
