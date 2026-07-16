@@ -16,6 +16,9 @@ pub enum ConfigError {
 
     #[error("SPI шина используется периферией, удалите сначала её: {0:?}")]
     SpiBusInUse(ChosenSpiBus),
+
+    #[error("Название пина уже используется: {0}")]
+    LabelAlreadyInUse(String),
 }
 
 /// Ошибки генерации проекта
