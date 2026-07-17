@@ -2,7 +2,7 @@ use cortex_m::delay::Delay;
 use stm32f4xx_hal::{
     pac,
     prelude::*,
-{%- if spi_buses | length > 0 %}
+{%- if spis | length > 0 %}
     spi::{Mode, Phase, Polarity, Spi},
 {%- endif %}
 };

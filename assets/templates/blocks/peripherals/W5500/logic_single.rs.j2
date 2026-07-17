@@ -1,4 +1,4 @@
-{%- if peripheral.socket_mode.TcpServer %}
+{%- if peripheral.socket_mode.tcp_server %}
         // Чтение аппаратно-формируемого статуса сокета W5500 #{{ peripheral.id }}
         let status_{{ peripheral.id }} = w5500_{{ peripheral.id }}
             .sn_sr(TCP_SOCKET_{{ peripheral.id }})

@@ -16,8 +16,20 @@ pub enum ConfigError {
 
     #[error("SPI шина используется периферией, удалите сначала её: {0:?}")]
     SpiBusInUse(ChosenSpiBus),
+
+    #[error("Название пина уже используется: {0}")]
+    LabelAlreadyInUse(String),
 }
 
 /// Ошибки генерации проекта
-#[derive(Debug, Error, Clone)]
-pub enum GeneratorError {}
+#[derive(Debug, Error)]
+pub enum GeneratorError {
+    #[error("Невозможно определить семейство микроконтроллера: конфигурация пуста")]
+    EmptyConfig,
+
+    #[error("Ошибка шаблонизатора: {0}")]
+    RenderError(#[from] minijinja::Error),
+
+    #[error("Ошибка файловой системы: {0}")]
+    IoError(#[from] std::io::Error),
+}
