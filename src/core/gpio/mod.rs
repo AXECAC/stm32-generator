@@ -27,6 +27,12 @@ impl ChosenPin {
             Self::StmF401(_) => "stm32f4",
         }
     }
+
+    pub fn hal_version(&self) -> &'static str {
+        match self {
+            Self::StmF401(_) => "0.23.0",
+        }
+    }
 }
 
 /// Пин + режим
