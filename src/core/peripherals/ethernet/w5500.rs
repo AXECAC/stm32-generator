@@ -10,10 +10,10 @@ use crate::core::{
 /// Сетевые параметры
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct NetworkConfig {
-    pub mac: [u8; 6],
-    pub ip: [u8; 4],
-    pub subnet: [u8; 4],
-    pub gateway: [u8; 4],
+    pub mac: MacAddr,
+    pub ip: Ipv4Addr,
+    pub subnet: Ipv4Addr,
+    pub gateway: Ipv4Addr,
 }
 
 /// Режим работы сокета W5500.

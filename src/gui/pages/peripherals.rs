@@ -6,7 +6,7 @@ use strum::VariantNames;
 use crate::core::{
     config::Config,
     gpio::{ChosenPin, f4::f401::StmF401Pin},
-    peripherals::{Peripheral, ethernet::w5500::{W5500Config, NetworkConfig, SocketMode}},
+    peripherals::{Peripheral, ethernet::{MacAddr, w5500::{W5500Config, NetworkConfig, SocketMode}}},
 };
 use crate::gui::pages::Page;
 
@@ -180,10 +180,10 @@ impl PeripheralsState {
                                     cs: ChosenPin::StmF401(cs_val),
                                     rst: ChosenPin::StmF401(rst_val),
                                     network: NetworkConfig {
-                                        mac: parsed_mac,
-                                        ip: ip.unwrap().octets(),
-                                        subnet: subnet.unwrap().octets(),
-                                        gateway: gateway.unwrap().octets(),
+                                        mac: MacAddr(parsed_mac),
+                                        ip: ip.unwrap(),
+                                        subnet: subnet.unwrap(),
+                                        gateway: gateway.unwrap(),
                                     },
                                     socket_mode: SocketMode::TcpServer { port: port.unwrap(), socket_num: 0 },
                                 };
@@ -231,12 +231,14 @@ impl PeripheralsState {
                                     ui.add_space(3.0);
                                     
                                     ui.horizontal(|ui| {
+                                        let mac = w5500.network.mac.0;
                                         ui.label(format!("MAC: {:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}", 
-                                            w5500.network.mac[0], w5500.network.mac[1], w5500.network.mac[2],
-                                            w5500.network.mac[3], w5500.network.mac[4], w5500.network.mac[5]));
+                                            mac[0], mac[1], mac[2],
+                                            mac[3], mac[4], mac[5]));
                                         ui.label("|");
+                                        let ip = w5500.network.ip.octets();
                                         ui.label(format!("IP: {}.{}.{}.{}", 
-                                            w5500.network.ip[0], w5500.network.ip[1], w5500.network.ip[2], w5500.network.ip[3]));
+                                            ip[0], ip[1], ip[2], ip[3]));
                                     });
                                     
                                     ui.add_space(3.0);

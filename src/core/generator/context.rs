@@ -183,10 +183,10 @@ impl TemplateContext {
                         spi_bus,
                         cs: PinCtx::new(&w.cs),
                         rst: PinCtx::new(&w.rst),
-                        mac: w.network.mac,
-                        ip: w.network.ip,
-                        subnet: w.network.subnet,
-                        gateway: w.network.gateway,
+                        mac: w.network.mac.0,
+                        ip: w.network.ip.octets(),
+                        subnet: w.network.subnet.octets(),
+                        gateway: w.network.gateway.octets(),
                         socket_mode: socket_mode_ctx,
                     });
                 }
