@@ -16,7 +16,7 @@ impl StartState {
         
         ui.add_space(20.0);
         if ui.button("Begin Configuration ->").clicked() {
-            *page = Page::Peripherals;
+            *page = Page::Pins;
         }
     }
 }

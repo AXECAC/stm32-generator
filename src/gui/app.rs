@@ -6,6 +6,7 @@ use crate::gui::pages::{
     start::StartState,
     peripherals::PeripheralsState,
     pins::PinsState,
+    spi::SpiState,
     run::RunState,
 };
 
@@ -17,6 +18,7 @@ pub struct GeneratorApp {
     start_state: StartState,
     peripherals_state: PeripheralsState,
     pins_state: PinsState,
+    spi_state: SpiState,
     run_state: RunState,
 }
 
@@ -30,6 +32,7 @@ impl Default for GeneratorApp {
             start_state: StartState::default(),
             peripherals_state: PeripheralsState::default(),
             pins_state: PinsState::default(),
+            spi_state: SpiState::default(),
             run_state: RunState::default(),
         }
     }
@@ -43,9 +46,10 @@ impl GeneratorApp {
     fn render_top_bar(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             ui.selectable_value(&mut self.page, Page::Start, "Start");
-            ui.selectable_value(&mut self.page, Page::Peripherals, "1. Peripherals");
-            ui.selectable_value(&mut self.page, Page::Pins, "2. GPIO Pins");
-            ui.selectable_value(&mut self.page, Page::Run, "3. Run");
+            ui.selectable_value(&mut self.page, Page::Pins, "1. GPIO Pins");
+            ui.selectable_value(&mut self.page, Page::Spi, "2. SPI Buses");
+            ui.selectable_value(&mut self.page, Page::Peripherals, "3. Peripherals");
+            ui.selectable_value(&mut self.page, Page::Run, "4. Run");
         });
         ui.separator();
     }
@@ -60,11 +64,14 @@ impl eframe::App for GeneratorApp {
                 Page::Start => {
                     self.start_state.render(ui, &mut self.page);
                 }
-                Page::Peripherals => {
-                    self.peripherals_state.render(ui, &mut self.config, &mut self.page);
-                }
                 Page::Pins => {
                     self.pins_state.render(ui, &mut self.config, &mut self.page);
+                }
+                Page::Spi => {
+                    self.spi_state.render(ui, &mut self.config, &mut self.page);
+                }
+                Page::Peripherals => {
+                    self.peripherals_state.render(ui, &mut self.config, &mut self.page);
                 }
                 Page::Run => {
                     self.run_state.render(ui, &self.config, &mut self.output_path);

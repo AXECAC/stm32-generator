@@ -4,14 +4,14 @@ use std::str::FromStr;
 use strum::VariantNames;
 
 use crate::core::{
-    config::{Config, SpiConfig, SpiMode},
-    gpio::{ChosenPin, ChosenSpiBus, f4::f401::{StmF401Pin, StmF401SpiBus}},
+    config::Config,
+    gpio::{ChosenPin, f4::f401::StmF401Pin},
     peripherals::{Peripheral, ethernet::w5500::{W5500Config, NetworkConfig, SocketMode}},
 };
 use crate::gui::pages::Page;
 
 pub struct PeripheralsState {
-    pub w5500_spi: usize,
+    pub w5500_spi_idx: usize,
     pub w5500_cs: usize,
     pub w5500_rst: usize,
     pub w5500_mac: String,
@@ -25,7 +25,7 @@ pub struct PeripheralsState {
 impl Default for PeripheralsState {
     fn default() -> Self {
         Self {
-            w5500_spi: 0,
+            w5500_spi_idx: 0,
             w5500_cs: 0,
             w5500_rst: 0,
             w5500_mac: "00:08:DC:AB:CD:EF".to_string(),
@@ -43,13 +43,22 @@ impl PeripheralsState {
         ui.heading("Peripherals Configuration");
         ui.label("Add up to two W5500 modules.");
 
+        let configured_spis = config.spi().to_vec();
+        if configured_spis.is_empty() {
+            ui.colored_label(egui::Color32::RED, "Please configure at least one SPI bus in the 'SPI Buses' page first.");
+            ui.add_space(20.0);
+            if ui.button("<- Go back to SPI Buses").clicked() {
+                *page = Page::Spi;
+            }
+            return;
+        }
+
         let w5500_count = config.peripherals().iter().filter(|(_, p)| matches!(p, Peripheral::W5500(_))).count();
 
         if w5500_count < 2 {
             ui.group(|ui| {
                 ui.label("Add New W5500 (TCP Server)");
                 
-                let spi_buses = StmF401SpiBus::VARIANTS;
                 let all_pins = StmF401Pin::VARIANTS;
                 let used_pins = config.all_uses_pins();
 
@@ -63,11 +72,18 @@ impl PeripheralsState {
 
                 egui::Grid::new("w5500_form").show(ui, |ui| {
                     ui.label("SPI Bus:");
+                    
+                    if self.w5500_spi_idx >= configured_spis.len() {
+                        self.w5500_spi_idx = 0;
+                    }
+                    
+                    let selected_spi_name = format!("{:?}", configured_spis[self.w5500_spi_idx].bus);
+                    
                     egui::ComboBox::from_id_salt("w5500_spi")
-                        .selected_text(*spi_buses.get(self.w5500_spi).unwrap_or(&""))
+                        .selected_text(selected_spi_name)
                         .show_ui(ui, |ui: &mut egui::Ui| {
-                            for (i, name) in spi_buses.iter().enumerate() {
-                                ui.selectable_value(&mut self.w5500_spi, i, *name);
+                            for (i, spi) in configured_spis.iter().enumerate() {
+                                ui.selectable_value(&mut self.w5500_spi_idx, i, format!("{:?}", spi.bus));
                             }
                         });
                     ui.end_row();
@@ -120,11 +136,9 @@ impl PeripheralsState {
                 if ui.button("Add W5500").clicked() {
                     self.w5500_error = None;
                     
-                    let spi_bus_name = spi_buses.get(self.w5500_spi).unwrap();
                     let cs_name = all_pins.get(self.w5500_cs).unwrap();
                     let rst_name = all_pins.get(self.w5500_rst).unwrap();
                     
-                    let spi_bus_val = StmF401SpiBus::from_str(spi_bus_name).unwrap();
                     let cs_val = StmF401Pin::from_str(cs_name).unwrap();
                     let rst_val = StmF401Pin::from_str(rst_name).unwrap();
                     
@@ -133,26 +147,35 @@ impl PeripheralsState {
                     let gateway = Ipv4Addr::from_str(&self.w5500_gateway);
                     let port = self.w5500_port.parse::<u16>();
 
-                    if ip.is_err() || subnet.is_err() || gateway.is_err() || port.is_err() {
-                        self.w5500_error = Some("Invalid IP or Port format".to_string());
-                    } else {
-                        let spi_cfg = SpiConfig {
-                            bus: ChosenSpiBus::StmF401(spi_bus_val),
-                            frequency_mhz: 10,
-                            mode: SpiMode::Mode0,
-                            sck: ChosenPin::StmF401(StmF401Pin::A5),
-                            miso: Some(ChosenPin::StmF401(StmF401Pin::A6)),
-                            mosi: Some(ChosenPin::StmF401(StmF401Pin::A7)),
-                        };
+                    // Basic MAC parsing since we removed MacAddr string parsing easily available
+                    let mac_parts: Vec<&str> = self.w5500_mac.split(':').collect();
+                    let mut parsed_mac = [0u8; 6];
+                    let mut mac_valid = mac_parts.len() == 6;
+                    
+                    if mac_valid {
+                        for (i, part) in mac_parts.iter().enumerate() {
+                            if let Ok(byte) = u8::from_str_radix(part, 16) {
+                                parsed_mac[i] = byte;
+                            } else {
+                                mac_valid = false;
+                                break;
+                            }
+                        }
+                    }
 
-                        let _ = config.add_spi_bus(spi_cfg);
+                    if !mac_valid {
+                        self.w5500_error = Some("Invalid MAC Address format (expected XX:XX:XX:XX:XX:XX)".to_string());
+                    } else if ip.is_err() || subnet.is_err() || gateway.is_err() || port.is_err() {
+                        self.w5500_error = Some("Invalid IP, Subnet, Gateway, or Port format".to_string());
+                    } else {
+                        let chosen_spi = configured_spis[self.w5500_spi_idx].bus;
 
                         let w5500_cfg = W5500Config {
-                            spi_bus: ChosenSpiBus::StmF401(spi_bus_val),
+                            spi_bus: chosen_spi,
                             cs: ChosenPin::StmF401(cs_val),
                             rst: ChosenPin::StmF401(rst_val),
                             network: NetworkConfig {
-                                mac: [0, 8, 220, 171, 205, 239],
+                                mac: parsed_mac,
                                 ip: ip.unwrap().octets(),
                                 subnet: subnet.unwrap().octets(),
                                 gateway: gateway.unwrap().octets(),
@@ -186,8 +209,8 @@ impl PeripheralsState {
         }
 
         ui.add_space(20.0);
-        if ui.button("Next: GPIO Pins ->").clicked() {
-            *page = Page::Pins;
+        if ui.button("Next: Run ->").clicked() {
+            *page = Page::Run;
         }
     }
 }
