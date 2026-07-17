@@ -1,1 +1,64 @@
-// TODO: Логика моста (двух W5500) будет реализована позже
+    // Чтение статусов обоих сокетов
+    let status1 = w5500_{{ peripheral1.id }}
+        .sn_sr(TCP_SOCKET_{{ peripheral1.id }})
+        .unwrap()
+        .unwrap_or(SocketStatus::Closed);
+
+    let status2 = w5500_{{ peripheral2.id }}
+        .sn_sr(TCP_SOCKET_{{ peripheral2.id }})
+        .unwrap()
+        .unwrap_or(SocketStatus::Closed);
+
+    // Обработка запросов для первого W5500 (User 1)
+    match status1 {
+        SocketStatus::Closed => {
+            w5500_{{ peripheral1.id }}.tcp_listen(TCP_SOCKET_{{ peripheral1.id }}, SERVER_PORT_{{ peripheral1.id }}).unwrap();
+        }
+        SocketStatus::Established | SocketStatus::CloseWait => {
+            let mut buf = [0u8; 128];
+            if let Ok(bytes_read) = w5500_{{ peripheral1.id }}.tcp_read(TCP_SOCKET_{{ peripheral1.id }}, &mut buf) {
+                if bytes_read > 0 {
+                    // Если второй модуль на связи, пересылаем сообщение ему
+                    if status2 == SocketStatus::Established {
+                        let _ = w5500_{{ peripheral2.id }}.tcp_write(TCP_SOCKET_{{ peripheral2.id }}, b"User 1: ");
+                        let _ = w5500_{{ peripheral2.id }}.tcp_write(TCP_SOCKET_{{ peripheral2.id }}, &buf[..bytes_read as usize]);
+                    }
+                }
+            }
+
+            if status1 == SocketStatus::CloseWait {
+                close_socket_{{ peripheral1.id }}!();
+            }
+        }
+        SocketStatus::TimeWait => {
+            close_socket_{{ peripheral1.id }}!();
+        }
+        _ => {}
+    }
+
+    // Обработка запросов для второго W5500 (User 2)
+    match status2 {
+        SocketStatus::Closed => {
+            w5500_{{ peripheral2.id }}.tcp_listen(TCP_SOCKET_{{ peripheral2.id }}, SERVER_PORT_{{ peripheral2.id }}).unwrap();
+        }
+        SocketStatus::Established | SocketStatus::CloseWait => {
+            let mut buf = [0u8; 128];
+            if let Ok(bytes_read) = w5500_{{ peripheral2.id }}.tcp_read(TCP_SOCKET_{{ peripheral2.id }}, &mut buf) {
+                if bytes_read > 0 {
+                    // Если первый модуль на связи, пересылаем сообщение ему
+                    if status1 == SocketStatus::Established {
+                        let _ = w5500_{{ peripheral1.id }}.tcp_write(TCP_SOCKET_{{ peripheral1.id }}, b"User 2: ");
+                        let _ = w5500_{{ peripheral1.id }}.tcp_write(TCP_SOCKET_{{ peripheral1.id }}, &buf[..bytes_read as usize]);
+                    }
+                }
+            }
+
+            if status2 == SocketStatus::CloseWait {
+                close_socket_{{ peripheral2.id }}!();
+            }
+        }
+        SocketStatus::TimeWait => {
+            close_socket_{{ peripheral2.id }}!();
+        }
+        _ => {}
+    }
