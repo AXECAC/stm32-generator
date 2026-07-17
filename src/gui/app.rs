@@ -39,7 +39,8 @@ impl Default for GeneratorApp {
 }
 
 impl GeneratorApp {
-    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        egui_extras::install_image_loaders(&cc.egui_ctx);
         Self::default()
     }
 
