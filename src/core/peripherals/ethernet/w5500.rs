@@ -10,7 +10,7 @@ use crate::core::{
 /// Сетевые параметры
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct NetworkConfig {
-    pub mac_addr: MacAddr,
+    pub mac: MacAddr,
     pub ip: Ipv4Addr,
     pub subnet: Ipv4Addr,
     pub gateway: Ipv4Addr,

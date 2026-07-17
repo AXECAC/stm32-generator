@@ -183,7 +183,7 @@ impl TemplateContext {
                         spi_bus,
                         cs: PinCtx::new(&w.cs),
                         rst: PinCtx::new(&w.rst),
-                        mac: w.network.mac_addr.0,
+                        mac: w.network.mac.0,
                         ip: w.network.ip.octets(),
                         subnet: w.network.subnet.octets(),
                         gateway: w.network.gateway.octets(),
