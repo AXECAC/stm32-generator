@@ -184,14 +184,51 @@ impl SpiState {
 
                 ui.separator();
                 ui.heading("Сконфигурированные шины SPI");
+                ui.add_space(10.0);
+                
                 let mut to_remove = None;
                 for spi_config in config.spi() {
-                    ui.horizontal(|ui| {
-                        ui.label(format!("{:?}", spi_config));
-                        if ui.button("Удалить").clicked() {
-                            to_remove = Some(spi_config.bus.clone());
-                        }
-                    });
+                    egui::Frame::group(ui.style())
+                        .fill(egui::Color32::from_gray(35))
+                        .show(ui, |ui| {
+                            ui.horizontal(|ui| {
+                                ui.label(egui::RichText::new(format!("{:?}", spi_config.bus)).strong().size(16.0));
+                                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                    if ui.button("🗑 Удалить").clicked() {
+                                        to_remove = Some(spi_config.bus.clone());
+                                    }
+                                });
+                            });
+                            
+                            ui.separator();
+                            
+                            ui.horizontal(|ui| {
+                                ui.label(format!("Частота: {} МГц", spi_config.frequency_mhz));
+                                ui.label("|");
+                                ui.label(format!("Режим: {:?}", spi_config.mode));
+                            });
+                            
+                            ui.add_space(3.0);
+                            
+                            ui.horizontal(|ui| {
+                                ui.label(format!("SCK: {:?}", spi_config.sck));
+                                
+                                ui.label("|");
+                                if let Some(miso) = &spi_config.miso {
+                                    ui.label(format!("MISO: {:?}", miso));
+                                } else {
+                                    ui.label("MISO: Выкл.");
+                                }
+                                
+                                ui.label("|");
+                                if let Some(mosi) = &spi_config.mosi {
+                                    ui.label(format!("MOSI: {:?}", mosi));
+                                } else {
+                                    ui.label("MOSI: Выкл.");
+                                }
+                            });
+                        });
+                    ui.add_space(5.0);
                 }
                 if let Some(bus) = to_remove {
                     let _ = config.remove_spi(&bus);

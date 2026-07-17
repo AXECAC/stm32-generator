@@ -200,14 +200,56 @@ impl PeripheralsState {
 
                 ui.separator();
                 ui.heading("Текущая периферия");
+                ui.add_space(10.0);
+                
                 let mut to_remove = None;
                 for (id, periph) in config.peripherals() {
-                    ui.horizontal(|ui| {
-                        ui.label(format!("{:?}", periph));
-                        if ui.button("Удалить").clicked() {
-                            to_remove = Some(*id);
-                        }
-                    });
+                    egui::Frame::group(ui.style())
+                        .fill(egui::Color32::from_gray(35))
+                        .show(ui, |ui| {
+                            match periph {
+                                Peripheral::W5500(w5500) => {
+                                    ui.horizontal(|ui| {
+                                        ui.label(egui::RichText::new("W5500 Ethernet").strong().size(16.0));
+                                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                            if ui.button("🗑 Удалить").clicked() {
+                                                to_remove = Some(*id);
+                                            }
+                                        });
+                                    });
+                                    
+                                    ui.separator();
+                                    
+                                    ui.horizontal(|ui| {
+                                        ui.label(format!("Шина SPI: {:?}", w5500.spi_bus));
+                                        ui.label("|");
+                                        ui.label(format!("CS: {:?}", w5500.cs));
+                                        ui.label("|");
+                                        ui.label(format!("RST: {:?}", w5500.rst));
+                                    });
+                                    
+                                    ui.add_space(3.0);
+                                    
+                                    ui.horizontal(|ui| {
+                                        ui.label(format!("MAC: {:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}", 
+                                            w5500.network.mac[0], w5500.network.mac[1], w5500.network.mac[2],
+                                            w5500.network.mac[3], w5500.network.mac[4], w5500.network.mac[5]));
+                                        ui.label("|");
+                                        ui.label(format!("IP: {}.{}.{}.{}", 
+                                            w5500.network.ip[0], w5500.network.ip[1], w5500.network.ip[2], w5500.network.ip[3]));
+                                    });
+                                    
+                                    ui.add_space(3.0);
+                                    
+                                    ui.horizontal(|ui| {
+                                        if let SocketMode::TcpServer { port, .. } = w5500.socket_mode {
+                                            ui.label(format!("Режим: TCP Сервер (Порт {})", port));
+                                        }
+                                    });
+                                }
+                            }
+                        });
+                    ui.add_space(5.0);
                 }
                 if let Some(id) = to_remove {
                     config.remove_peripheral(id);
