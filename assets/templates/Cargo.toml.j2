@@ -1,7 +1,7 @@
 [package]
 edition = "2021"
 readme = "README.md"
-name = "{{ project_name | default('stm32_project') }}"
+name = "{{ project_name }}"
 version = "0.1.0"
 
 [dependencies]
@@ -12,9 +12,9 @@ panic-halt = "1.0.0"
 
 embedded-hal = "1.0.0"
 # Настроено под конкретное семейство MCU
-stm32f{{ mcu_family | default('4') }}xx-hal = { version = "{{ hal_version | default('0.23.0') }}", features = ["{{ hal_feature | default('stm32f401') }}"]}
+{{ mcu_family }}xx-hal = { version = "{{ hal_version }}", features = ["{{ hal_feature }}"]}
 
-{% if has_w5500 %}
+{% if w5500_peripherals | length > 0 %}
 # Зависимости для W5500
 w5500-ll = { version = "0.13.0", features = ["eh1"] }
 w5500-hl = { version = "0.12.0", features = ["eh1"] }

@@ -6,7 +6,7 @@ set_on_bp:
     just build
     dfu-util -a 0 -s 0x08000000:leave -D target/{{ project_name | default('stm32_project') }}.bin
 
-{% if has_w5500 %}
+{% if w5500_peripherals | length > 0 %}
 setup_ip:
     sudo nmcli connection add type ethernet ifname enp45s0 con-name \
         {{ project_name | default('stm32_project') }}_W5500 ipv4.method manual ipv4.addresses 192.168.1.20/24 \

@@ -10,6 +10,15 @@ pub enum StmF4PinMode {
     Output(StmF4OutputMode, StmF4OutputSpeed),
 }
 
+impl StmF4PinMode {
+    pub fn template_vars(&self) -> (&'static str, bool, Option<&'static str>) {
+        match self {
+            Self::Input(input_mode) => (input_mode.method_name(), false, None),
+            Self::Output(out_mode, out_speed) => (out_mode.method_name(), true, Some(out_speed.speed_name())),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, VariantNames, IntoStaticStr, Serialize)]
 pub enum StmF4InputMode {
     Floating,
@@ -19,6 +28,16 @@ pub enum StmF4InputMode {
 
     #[strum(to_string = "Pull down")]
     PullDown,
+}
+
+impl StmF4InputMode {
+    pub fn method_name(&self) -> &'static str {
+        match self {
+            Self::Floating => "into_floating_input",
+            Self::PullUp => "into_pull_up_input",
+            Self::PullDown => "into_pull_down_input",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, VariantNames, IntoStaticStr, Serialize)]
@@ -38,6 +57,17 @@ pub enum StmF4OutputSpeed {
     VeryHigh,
 }
 
+impl StmF4OutputSpeed {
+    pub fn speed_name(&self) -> &'static str {
+        match self {
+            Self::Low => "Low",
+            Self::Medium => "Medium",
+            Self::High => "High",
+            Self::VeryHigh => "VeryHigh",
+        }
+    }
+}
+
 /// Тип выхода GPIO на STM32F4.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, VariantNames, IntoStaticStr, Serialize)]
 pub enum StmF4OutputMode {
@@ -51,4 +81,13 @@ pub enum StmF4OutputMode {
     /// Используется для I2C (SDA, SCL).
     #[strum(to_string = "Open drain")]
     OpenDrain,
+}
+
+impl StmF4OutputMode {
+    pub fn method_name(&self) -> &'static str {
+        match self {
+            Self::PushPull => "into_push_pull_output",
+            Self::OpenDrain => "into_open_drain_output",
+        }
+    }
 }

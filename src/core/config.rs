@@ -14,6 +14,12 @@ type ConfigResult<T> = Result<T, ConfigError>;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct PeripheralId(u64);
 
+impl PeripheralId {
+    pub fn get(&self) -> u64 {
+        self.0
+    }
+}
+
 /// Вся конфигурация платы и её переферии
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize)]
 pub struct Config {
@@ -77,6 +83,12 @@ impl Config {
 
     pub fn add_gpio_pin(&mut self, gpio_pin: PinConfig) -> ConfigResult<()> {
         self.check_conflicts_pins(&[gpio_pin.pin.into()])?;
+
+        let new_label = gpio_pin.label();
+        if self.gpio_pins.iter().any(|p| p.label() == new_label) {
+            return Err(ConfigError::LabelAlreadyInUse(new_label));
+        }
+
         self.gpio_pins.push(gpio_pin);
         Ok(())
     }
@@ -139,6 +151,17 @@ pub struct PinConfig {
     pub label: Option<String>,
 }
 
+impl PinConfig {
+    pub fn label(&self) -> String {
+        self.label.clone().unwrap_or_else(|| {
+            let s: &'static str = match self.pin.pin() {
+                ChosenPin::StmF401(p) => p.into(),
+            };
+            format!("p{}", s.to_lowercase())
+        })
+    }
+}
+
 /// Конфигурация периферии
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SpiConfig {
@@ -169,7 +192,7 @@ impl UsesPins for SpiConfig {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum SpiMode {
     /// Polarity: IdleLow (CPOL=0)
-    /// Phase CaptureOnFirstTransition (CPHA=0)
+    /// Phase: CaptureOnFirstTransition (CPHA=0)
     Mode0,
     /// Polarity: IdleLow (CPOL=0)
     /// Phase: CaptureOnSecondTransition (CPHA=1)
@@ -180,4 +203,15 @@ pub enum SpiMode {
     /// Polarity: IdleHigh (CPOL=1)
     /// Phase: CaptureOnSecondTransition (CPHA=1)
     Mode3,
+}
+
+impl SpiMode {
+    pub fn template_vars(&self) -> (&'static str, &'static str) {
+        match self {
+            Self::Mode0 => ("IdleLow", "CaptureOnFirstTransition"),
+            Self::Mode1 => ("IdleLow", "CaptureOnSecondTransition"),
+            Self::Mode2 => ("IdleHigh", "CaptureOnFirstTransition"),
+            Self::Mode3 => ("IdleHigh", "CaptureOnSecondTransition"),
+        }
+    }
 }
