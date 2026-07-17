@@ -46,7 +46,7 @@ impl RunState {
 
                     ui.add_space(20.0);
 
-                    if self.receiver.is_none() && !self.gen_finished && ui.button(egui::RichText::new("🚀 Начать генерацию").size(16.0)).clicked() {
+                    if self.receiver.is_none() && !self.gen_finished && ui.button(egui::RichText::new("Начать генерацию").size(16.0)).clicked() {
                         let path = PathBuf::from(output_path.clone());
                         self.receiver = Some(start_generation(config.clone(), path));
                         self.gen_status = "Запуск...".to_string();

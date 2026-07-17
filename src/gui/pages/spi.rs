@@ -194,7 +194,7 @@ impl SpiState {
                             ui.horizontal(|ui| {
                                 ui.label(egui::RichText::new(format!("{:?}", spi_config.bus)).strong().size(16.0));
                                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                    if ui.button("🗑 Удалить").clicked() {
+                                    if ui.button("Удалить").clicked() {
                                         to_remove = Some(spi_config.bus.clone());
                                     }
                                 });

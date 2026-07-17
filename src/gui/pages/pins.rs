@@ -188,14 +188,14 @@ impl PinsState {
                                     PinState::UsedByPeripheral => {
                                         ui.colored_label(
                                             egui::Color32::from_rgb(255, 165, 0),
-                                            "⚠  Используется периферией",
+                                            "Используется периферией",
                                         );
                                         ui.label("Освободите пин в разделе Peripherals.");
                                     }
                                     PinState::Configured => {
-                                        ui.colored_label(egui::Color32::from_rgb(40, 190, 60), "✓  Сконфигурирован как GPIO");
+                                        ui.colored_label(egui::Color32::from_rgb(40, 190, 60), "Сконфигурирован как GPIO");
                                         ui.add_space(6.0);
-                                        if ui.button("🗑  Удалить").clicked() {
+                                        if ui.button("Удалить").clicked() {
                                             action_remove = Some(ChosenPin::StmF401(pin_val));
                                             new_selected = Some(None);
                                         }

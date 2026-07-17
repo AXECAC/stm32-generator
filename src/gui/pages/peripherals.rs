@@ -212,7 +212,7 @@ impl PeripheralsState {
                                     ui.horizontal(|ui| {
                                         ui.label(egui::RichText::new("W5500 Ethernet").strong().size(16.0));
                                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                            if ui.button("🗑 Удалить").clicked() {
+                                            if ui.button("Удалить").clicked() {
                                                 to_remove = Some(*id);
                                             }
                                         });
