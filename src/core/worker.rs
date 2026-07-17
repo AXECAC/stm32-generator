@@ -28,7 +28,13 @@ pub fn start_generation(config: Config, output_dir: PathBuf) -> Receiver<WorkerM
             status: "Сборка контекста шаблона...".to_string(),
         });
 
-        let context = match TemplateContext::from_config(&config) {
+        let project_name = output_dir
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
+
+        let context = match TemplateContext::from_config(&config, project_name) {
             Ok(ctx) => ctx,
             Err(e) => {
                 let _ = sender.send(WorkerMessage::Error { message: e });

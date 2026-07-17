@@ -8,7 +8,10 @@ use std::collections::HashSet;
 
 #[derive(Serialize)]
 pub struct TemplateContext {
+    pub project_name: String,
     pub mcu_family: String,
+    pub hal_version: String,
+    pub hal_feature: String,
     pub used_ports: Vec<String>,
     pub gpio_pins: Vec<GpioPinCtx>,
     pub spis: Vec<SpiCtx>,
@@ -193,14 +196,7 @@ impl TemplateContext {
     }
 
     /// Строит контекст для Jinja из сырого конфига
-    pub fn from_config(config: &Config) -> Result<Self, GeneratorError> {
-        let mcu_family = config
-            .all_uses_pins()
-            .first()
-            .map(|p| p.mcu_family())
-            .ok_or(GeneratorError::EmptyConfig)?
-            .to_string();
-
+    pub fn from_config(config: &Config, project_name: String) -> Result<Self, GeneratorError> {
         let mut used_ports_set = HashSet::new();
         for pin in config.all_uses_pins() {
             used_ports_set.insert(PinCtx::new(&pin).port);
@@ -208,12 +204,32 @@ impl TemplateContext {
         let mut used_ports: Vec<String> = used_ports_set.into_iter().collect();
         used_ports.sort();
 
+        let first_pin = config.all_uses_pins().first().copied();
+
+        let mcu_family = first_pin
+            .map(|p| p.mcu_family())
+            .ok_or(GeneratorError::EmptyConfig)?
+            .to_string();
+
+        let hal_version = first_pin
+            .map(|p| p.hal_version())
+            .unwrap_or("0.21.0")
+            .to_string();
+
+        let hal_feature = first_pin
+            .map(|p| p.hal_feature())
+            .unwrap_or("stm32f401")
+            .to_string();
+
         let gpio_pins = Self::build_gpio_ctx(config);
         let spis = Self::build_spi_ctx(config);
         let (w5500_peripherals, has_w5500_tcp) = Self::build_w5500_ctx(config);
 
         Ok(Self {
+            project_name,
             mcu_family,
+            hal_version,
+            hal_feature,
             used_ports,
             gpio_pins,
             spis,
