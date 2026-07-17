@@ -33,6 +33,12 @@ impl ChosenPin {
             Self::StmF401(_) => "0.23.0",
         }
     }
+
+    pub fn hal_feature(&self) -> &'static str {
+        match self {
+            Self::StmF401(_) => "stm32f401",
+        }
+    }
 }
 
 /// Пин + режим
