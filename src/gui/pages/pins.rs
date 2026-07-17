@@ -293,11 +293,17 @@ impl PinsState {
             ui.separator();
             ui.add_space(8.0);
 
-            // ---- Board schematic canvas ----
-            let (board_resp, painter) = ui.allocate_painter(
-                egui::Vec2::new(board_canvas_w, board_canvas_h),
-                egui::Sense::click(),
-            );
+            let available_width = ui.available_width();
+            let pad = (available_width - board_canvas_w).max(0.0) / 2.0;
+            if pad > 0.0 {
+                ui.add_space(pad);
+            }
+
+            ui.vertical(|ui| {
+                let (board_resp, painter) = ui.allocate_painter(
+                    egui::Vec2::new(board_canvas_w, board_canvas_h),
+                    egui::Sense::click(),
+                );
 
             let origin = board_resp.rect.min;
             let board_x = origin.x + LABEL_W + PIN_R * 2.5;
@@ -464,6 +470,7 @@ impl PinsState {
                     Some(clicked)
                 });
             }
+            }); // Close ui.vertical around canvas
         });
 
         // Apply deferred mutations

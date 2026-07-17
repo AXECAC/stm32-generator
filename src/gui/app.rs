@@ -45,13 +45,36 @@ impl GeneratorApp {
     }
 
     fn render_top_bar(&mut self, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
-            ui.selectable_value(&mut self.page, Page::Start, "Start");
-            ui.selectable_value(&mut self.page, Page::Pins, "1. GPIO Pins");
-            ui.selectable_value(&mut self.page, Page::Spi, "2. SPI Buses");
-            ui.selectable_value(&mut self.page, Page::Peripherals, "3. Peripherals");
-            ui.selectable_value(&mut self.page, Page::Run, "4. Run");
+        ui.add_space(10.0);
+        let text_size = 18.0;
+        ui.columns(5, |cols| {
+            cols[0].vertical_centered_justified(|ui| {
+                if ui.selectable_label(self.page == Page::Start, egui::RichText::new("Start").size(text_size)).clicked() {
+                    self.page = Page::Start;
+                }
+            });
+            cols[1].vertical_centered_justified(|ui| {
+                if ui.selectable_label(self.page == Page::Pins, egui::RichText::new("1. GPIO Pins").size(text_size)).clicked() {
+                    self.page = Page::Pins;
+                }
+            });
+            cols[2].vertical_centered_justified(|ui| {
+                if ui.selectable_label(self.page == Page::Spi, egui::RichText::new("2. SPI Buses").size(text_size)).clicked() {
+                    self.page = Page::Spi;
+                }
+            });
+            cols[3].vertical_centered_justified(|ui| {
+                if ui.selectable_label(self.page == Page::Peripherals, egui::RichText::new("3. Peripherals").size(text_size)).clicked() {
+                    self.page = Page::Peripherals;
+                }
+            });
+            cols[4].vertical_centered_justified(|ui| {
+                if ui.selectable_label(self.page == Page::Run, egui::RichText::new("4. Run").size(text_size)).clicked() {
+                    self.page = Page::Run;
+                }
+            });
         });
+        ui.add_space(10.0);
         ui.separator();
     }
 }

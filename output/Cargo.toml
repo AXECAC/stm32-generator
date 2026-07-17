@@ -1,0 +1,33 @@
+[package]
+edition = "2021"
+readme = "README.md"
+name = "output"
+version = "0.1.0"
+
+[dependencies]
+cortex-m = { version = "0.7.6", features = ["critical-section-single-core"] }
+cortex-m-rt = "0.7"
+cortex-m-semihosting = "0.5"
+panic-halt = "1.0.0"
+
+embedded-hal = "1.0.0"
+# Настроено под конкретное семейство MCU
+stm32f4xx-hal = { version = "0.23.0", features = ["stm32f401"]}
+
+
+# Зависимости для W5500
+w5500-ll = { version = "0.13.0", features = ["eh1"] }
+w5500-hl = { version = "0.12.0", features = ["eh1"] }
+embedded-hal-bus = "0.3.0"
+
+
+[profile.dev]
+opt-level = 0
+debug = true
+lto = false
+
+[profile.release]
+codegen-units = 1
+opt-level = 'z'
+debug = false
+lto = true
