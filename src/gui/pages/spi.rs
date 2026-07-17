@@ -40,14 +40,14 @@ impl SpiState {
     pub fn render(&mut self, ui: &mut egui::Ui, config: &mut Config, page: &mut Page) {
         ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
             ui.add_space(20.0);
-            ui.heading(egui::RichText::new("SPI Buses Configuration").size(20.0));
+            ui.heading(egui::RichText::new("Конфигурация шин SPI").size(20.0));
             ui.add_space(5.0);
-            ui.label("Configure SPI buses before attaching peripherals like W5500.");
+            ui.label("Настройте шины SPI перед добавлением периферии (например, W5500).");
             ui.add_space(20.0);
 
             ui.allocate_ui_with_layout(egui::vec2(500.0, ui.available_height()), egui::Layout::top_down(egui::Align::Min), |ui| {
                 ui.group(|ui| {
-                    ui.label("Add New SPI Bus");
+                    ui.label("Добавить новую шину SPI");
                     
                     let spi_buses = StmF401SpiBus::VARIANTS;
                     let all_pins = StmF401Pin::VARIANTS;
@@ -62,10 +62,10 @@ impl SpiState {
                     }).collect();
 
                     if available_pins.is_empty() {
-                        ui.label("No available pins left.");
+                        ui.label("Нет доступных пинов.");
                     } else {
                         egui::Grid::new("spi_form").show(ui, |ui| {
-                            ui.label("Bus:");
+                            ui.label("Шина:");
                             egui::ComboBox::from_id_salt("spi_bus")
                                 .selected_text(spi_buses[self.spi_bus_idx])
                                 .show_ui(ui, |ui: &mut egui::Ui| {
@@ -75,12 +75,12 @@ impl SpiState {
                                 });
                             ui.end_row();
 
-                            ui.label("Frequency (MHz):");
+                            ui.label("Частота (МГц):");
                             ui.text_edit_singleline(&mut self.frequency_mhz);
                             ui.end_row();
 
-                            ui.label("SPI Mode:");
-                            let modes = ["Mode 0", "Mode 1", "Mode 2", "Mode 3"];
+                            ui.label("Режим SPI:");
+                            let modes = ["Режим 0", "Режим 1", "Режим 2", "Режим 3"];
                             egui::ComboBox::from_id_salt("spi_mode")
                                 .selected_text(modes[self.mode_idx])
                                 .show_ui(ui, |ui: &mut egui::Ui| {
@@ -105,12 +105,12 @@ impl SpiState {
                                     });
                             };
 
-                            pin_combo(ui, "sck_pin", "SCK Pin:", &mut self.sck_pin_idx);
+                            pin_combo(ui, "sck_pin", "Пин SCK:", &mut self.sck_pin_idx);
                             ui.end_row();
 
                             ui.horizontal(|ui| {
-                                ui.label("MISO Pin:");
-                                ui.checkbox(&mut self.use_miso, "Enable");
+                                ui.label("Пин MISO:");
+                                ui.checkbox(&mut self.use_miso, "Включить");
                             });
                             if self.use_miso {
                                 pin_combo(ui, "miso_pin", "", &mut self.miso_pin_idx);
@@ -118,8 +118,8 @@ impl SpiState {
                             ui.end_row();
 
                             ui.horizontal(|ui| {
-                                ui.label("MOSI Pin:");
-                                ui.checkbox(&mut self.use_mosi, "Enable");
+                                ui.label("Пин MOSI:");
+                                ui.checkbox(&mut self.use_mosi, "Включить");
                             });
                             if self.use_mosi {
                                 pin_combo(ui, "mosi_pin", "", &mut self.mosi_pin_idx);
@@ -131,7 +131,7 @@ impl SpiState {
                             ui.colored_label(egui::Color32::RED, err);
                         }
 
-                        if ui.button("Add SPI Bus").clicked() {
+                        if ui.button("Добавить шину SPI").clicked() {
                             self.spi_error = None;
                             
                             let bus_name = spi_buses[self.spi_bus_idx];
@@ -176,19 +176,19 @@ impl SpiState {
                                     self.spi_error = Some(format!("{:?}", e));
                                 }
                             } else {
-                                self.spi_error = Some("Invalid frequency".to_string());
+                                self.spi_error = Some("Неверная частота".to_string());
                             }
                         }
                     }
                 });
 
                 ui.separator();
-                ui.heading("Configured SPI Buses");
+                ui.heading("Сконфигурированные шины SPI");
                 let mut to_remove = None;
                 for spi_config in config.spi() {
                     ui.horizontal(|ui| {
                         ui.label(format!("{:?}", spi_config));
-                        if ui.button("Remove").clicked() {
+                        if ui.button("Удалить").clicked() {
                             to_remove = Some(spi_config.bus.clone());
                         }
                     });
@@ -198,7 +198,7 @@ impl SpiState {
                 }
 
                 ui.add_space(20.0);
-                if ui.button("Next: Peripherals ->").clicked() {
+                if ui.button("Далее: Периферия ->").clicked() {
                     *page = Page::Peripherals;
                 }
             });

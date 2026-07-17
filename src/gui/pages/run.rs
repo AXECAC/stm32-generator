@@ -36,20 +36,20 @@ impl RunState {
                 egui::Frame::group(ui.style())
                     .show(ui, |ui| {
                         ui.add_space(10.0);
-                        ui.heading(egui::RichText::new("Generate Project").size(20.0));
+                        ui.heading(egui::RichText::new("Генерация проекта").size(20.0));
                         ui.add_space(15.0);
 
                         ui.horizontal(|ui| {
-                            ui.label("Output Path:");
+                            ui.label("Путь для сохранения:");
                             ui.add(egui::TextEdit::singleline(output_path).desired_width(f32::INFINITY));
                         });
 
                     ui.add_space(20.0);
 
-                    if self.receiver.is_none() && !self.gen_finished && ui.button(egui::RichText::new("🚀 Start Generation").size(16.0)).clicked() {
+                    if self.receiver.is_none() && !self.gen_finished && ui.button(egui::RichText::new("🚀 Начать генерацию").size(16.0)).clicked() {
                         let path = PathBuf::from(output_path.clone());
                         self.receiver = Some(start_generation(config.clone(), path));
-                        self.gen_status = "Starting...".to_string();
+                        self.gen_status = "Запуск...".to_string();
                         self.gen_percent = 0.0;
                         self.gen_error = None;
                         self.gen_finished = false;
@@ -64,13 +64,13 @@ impl RunState {
                                 }
                                 WorkerMessage::Done { output_dir } => {
                                     self.gen_percent = 100.0;
-                                    self.gen_status = format!("Success! Saved to {:?}", output_dir);
+                                    self.gen_status = format!("Успешно! Сохранено в {:?}", output_dir);
                                     self.gen_finished = true;
                                     self.receiver = None;
                                     break;
                                 }
                                 WorkerMessage::Error { message } => {
-                                    self.gen_status = "Generation failed".to_string();
+                                    self.gen_status = "Ошибка генерации".to_string();
                                     self.gen_error = Some(format!("{:?}", message));
                                     self.gen_finished = true;
                                     self.receiver = None;
@@ -82,13 +82,13 @@ impl RunState {
 
                     if self.receiver.is_some() || self.gen_finished {
                         ui.add_space(15.0);
-                        ui.label(format!("Status: {}", self.gen_status));
+                        ui.label(format!("Статус: {}", self.gen_status));
                         ui.add_space(5.0);
                         ui.add(egui::ProgressBar::new(self.gen_percent / 100.0).show_percentage());
 
                         if let Some(err) = &self.gen_error {
                             ui.add_space(10.0);
-                            ui.colored_label(egui::Color32::RED, format!("Error: {}", err));
+                            ui.colored_label(egui::Color32::RED, format!("Ошибка: {}", err));
                         }
                     }
                 });

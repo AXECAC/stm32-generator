@@ -42,17 +42,17 @@ impl PeripheralsState {
     pub fn render(&mut self, ui: &mut egui::Ui, config: &mut Config, page: &mut Page) {
         ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
             ui.add_space(20.0);
-            ui.heading(egui::RichText::new("Peripherals Configuration").size(20.0));
+            ui.heading(egui::RichText::new("Конфигурация периферии").size(20.0));
             ui.add_space(5.0);
-            ui.label("Add up to two W5500 modules.");
+            ui.label("Добавьте до двух модулей W5500.");
             ui.add_space(20.0);
 
             ui.allocate_ui_with_layout(egui::vec2(500.0, ui.available_height()), egui::Layout::top_down(egui::Align::Min), |ui| {
                 let configured_spis = config.spi().to_vec();
                 if configured_spis.is_empty() {
-                    ui.colored_label(egui::Color32::RED, "Please configure at least one SPI bus in the 'SPI Buses' page first.");
+                    ui.colored_label(egui::Color32::RED, "Пожалуйста, сначала настройте хотя бы одну шину SPI на вкладке 'Шины SPI'.");
                     ui.add_space(20.0);
-                    if ui.button("<- Go back to SPI Buses").clicked() {
+                    if ui.button("<- Вернуться к шинам SPI").clicked() {
                         *page = Page::Spi;
                     }
                     return;
@@ -62,7 +62,7 @@ impl PeripheralsState {
 
                 if w5500_count < 2 {
                     ui.group(|ui| {
-                        ui.label("Add New W5500 (TCP Server)");
+                        ui.label("Добавить новый W5500 (TCP Сервер)");
                         
                         let all_pins = StmF401Pin::VARIANTS;
                         let used_pins = config.all_uses_pins();
@@ -76,7 +76,7 @@ impl PeripheralsState {
                         }).collect();
 
                         egui::Grid::new("w5500_form").show(ui, |ui| {
-                            ui.label("SPI Bus:");
+                            ui.label("Шина SPI:");
                             
                             if self.w5500_spi_idx >= configured_spis.len() {
                                 self.w5500_spi_idx = 0;
@@ -110,26 +110,26 @@ impl PeripheralsState {
                                 ui.end_row();
                             };
 
-                            pin_combo("w5500_cs", "CS Pin:", &mut self.w5500_cs);
-                            pin_combo("w5500_rst", "RST Pin:", &mut self.w5500_rst);
+                            pin_combo("w5500_cs", "Пин CS:", &mut self.w5500_cs);
+                            pin_combo("w5500_rst", "Пин RST:", &mut self.w5500_rst);
 
-                            ui.label("MAC Address:");
+                            ui.label("MAC адрес:");
                             ui.text_edit_singleline(&mut self.w5500_mac);
                             ui.end_row();
 
-                            ui.label("IP Address:");
+                            ui.label("IP адрес:");
                             ui.text_edit_singleline(&mut self.w5500_ip);
                             ui.end_row();
                             
-                            ui.label("Subnet Mask:");
+                            ui.label("Маска подсети:");
                             ui.text_edit_singleline(&mut self.w5500_subnet);
                             ui.end_row();
                             
-                            ui.label("Gateway:");
+                            ui.label("Шлюз:");
                             ui.text_edit_singleline(&mut self.w5500_gateway);
                             ui.end_row();
 
-                            ui.label("Port:");
+                            ui.label("Порт:");
                             ui.text_edit_singleline(&mut self.w5500_port);
                             ui.end_row();
                         });
@@ -138,7 +138,7 @@ impl PeripheralsState {
                             ui.colored_label(egui::Color32::RED, err);
                         }
 
-                        if ui.button("Add W5500").clicked() {
+                        if ui.button("Добавить W5500").clicked() {
                             self.w5500_error = None;
                             
                             let cs_name = all_pins.get(self.w5500_cs).unwrap();
@@ -169,9 +169,9 @@ impl PeripheralsState {
                             }
 
                             if !mac_valid {
-                                self.w5500_error = Some("Invalid MAC Address format (expected XX:XX:XX:XX:XX:XX)".to_string());
+                                self.w5500_error = Some("Неверный формат MAC-адреса (ожидается XX:XX:XX:XX:XX:XX)".to_string());
                             } else if ip.is_err() || subnet.is_err() || gateway.is_err() || port.is_err() {
-                                self.w5500_error = Some("Invalid IP, Subnet, Gateway, or Port format".to_string());
+                                self.w5500_error = Some("Неверный формат IP, маски, шлюза или порта".to_string());
                             } else {
                                 let chosen_spi = configured_spis[self.w5500_spi_idx].bus;
 
@@ -195,16 +195,16 @@ impl PeripheralsState {
                         }
                     });
                 } else {
-                    ui.label("Maximum number of W5500 modules reached (2).");
+                    ui.label("Достигнуто максимальное количество модулей W5500 (2).");
                 }
 
                 ui.separator();
-                ui.heading("Current Peripherals");
+                ui.heading("Текущая периферия");
                 let mut to_remove = None;
                 for (id, periph) in config.peripherals() {
                     ui.horizontal(|ui| {
                         ui.label(format!("{:?}", periph));
-                        if ui.button("Remove").clicked() {
+                        if ui.button("Удалить").clicked() {
                             to_remove = Some(*id);
                         }
                     });
@@ -214,7 +214,7 @@ impl PeripheralsState {
                 }
 
                 ui.add_space(20.0);
-                if ui.button("Next: Run ->").clicked() {
+                if ui.button("Далее: Генерация ->").clicked() {
                     *page = Page::Run;
                 }
             });

@@ -130,16 +130,16 @@ impl PinsState {
             .map(|pc| (pc.pin.pin(), pc.label()))
             .collect();
 
-        ui.heading("GPIO Pins Configuration");
+        ui.heading("Конфигурация пинов GPIO");
         ui.label("Нажмите на пин на схеме платы для его настройки.");
         ui.add_space(6.0);
 
         // === Legend row ===
         ui.horizontal(|ui| {
             let legend = [
-                ("Available", egui::Color32::from_rgb(140, 140, 155)),
-                ("GPIO configured", egui::Color32::from_rgb(40, 190, 60)),
-                ("Used by peripheral", egui::Color32::from_rgb(220, 140, 20)),
+                ("Доступно", egui::Color32::from_rgb(140, 140, 155)),
+                ("Сконфигурирован (GPIO)", egui::Color32::from_rgb(40, 190, 60)),
+                ("Используется периферией", egui::Color32::from_rgb(220, 140, 20)),
             ];
             for (label, color) in legend {
                 let (resp, painter) = ui.allocate_painter(egui::Vec2::splat(14.0), egui::Sense::hover());
@@ -178,7 +178,7 @@ impl PinsState {
                         Ok(pin_val) => {
                             ui.group(|ui| {
                                 ui.label(
-                                    egui::RichText::new(format!("Pin  P{}", pin_name))
+                                    egui::RichText::new(format!("Пин P{}", pin_name))
                                         .strong()
                                         .size(16.0),
                                 );
@@ -202,10 +202,10 @@ impl PinsState {
                                     }
                                     PinState::Available => {
                                         let modes = [
-                                            "Input Floating",
-                                            "Input PullUp",
-                                            "Input PullDown",
-                                            "Output PushPull",
+                                            "Вход Floating",
+                                            "Вход Pull-Up",
+                                            "Вход Pull-Down",
+                                            "Выход Push-Pull",
                                         ];
                                         ui.label("Режим:");
                                         egui::ComboBox::from_id_salt("pin_mode_combo")

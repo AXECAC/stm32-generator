@@ -13,12 +13,12 @@ impl StartState {
     pub fn render(&mut self, ui: &mut egui::Ui, page: &mut Page) {
         ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
             ui.add_space(ui.available_height() / 3.0);
-            ui.heading(egui::RichText::new("STM32 Code Generator (Black-Pill)").size(24.0).strong());
+            ui.heading(egui::RichText::new("Генератор кода STM32 (Black-Pill)").size(24.0).strong());
             ui.add_space(10.0);
-            ui.label("Welcome to the STM32 generator. Follow the steps in the top bar to configure and generate your project.");
+            ui.label("Добро пожаловать в генератор STM32. Следуйте шагам на верхней панели, чтобы настроить и сгенерировать ваш проект.");
             
             ui.add_space(20.0);
-            if ui.button(egui::RichText::new("Begin Configuration ->").size(16.0)).clicked() {
+            if ui.button(egui::RichText::new("Начать настройку ->").size(16.0)).clicked() {
                 *page = Page::Pins;
             }
         });

@@ -49,27 +49,27 @@ impl GeneratorApp {
         let text_size = 18.0;
         ui.columns(5, |cols| {
             cols[0].vertical_centered_justified(|ui| {
-                if ui.selectable_label(self.page == Page::Start, egui::RichText::new("Start").size(text_size)).clicked() {
+                if ui.selectable_label(self.page == Page::Start, egui::RichText::new("Начало").size(text_size)).clicked() {
                     self.page = Page::Start;
                 }
             });
             cols[1].vertical_centered_justified(|ui| {
-                if ui.selectable_label(self.page == Page::Pins, egui::RichText::new("1. GPIO Pins").size(text_size)).clicked() {
+                if ui.selectable_label(self.page == Page::Pins, egui::RichText::new("1. Пины GPIO").size(text_size)).clicked() {
                     self.page = Page::Pins;
                 }
             });
             cols[2].vertical_centered_justified(|ui| {
-                if ui.selectable_label(self.page == Page::Spi, egui::RichText::new("2. SPI Buses").size(text_size)).clicked() {
+                if ui.selectable_label(self.page == Page::Spi, egui::RichText::new("2. Шины SPI").size(text_size)).clicked() {
                     self.page = Page::Spi;
                 }
             });
             cols[3].vertical_centered_justified(|ui| {
-                if ui.selectable_label(self.page == Page::Peripherals, egui::RichText::new("3. Peripherals").size(text_size)).clicked() {
+                if ui.selectable_label(self.page == Page::Peripherals, egui::RichText::new("3. Периферия").size(text_size)).clicked() {
                     self.page = Page::Peripherals;
                 }
             });
             cols[4].vertical_centered_justified(|ui| {
-                if ui.selectable_label(self.page == Page::Run, egui::RichText::new("4. Run").size(text_size)).clicked() {
+                if ui.selectable_label(self.page == Page::Run, egui::RichText::new("4. Генерация").size(text_size)).clicked() {
                     self.page = Page::Run;
                 }
             });
