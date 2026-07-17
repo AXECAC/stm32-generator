@@ -137,7 +137,7 @@ impl TemplateContext {
             } else {
                 "None".to_string()
             };
-            let pins_tuple = format!("sck_{}, {}, {}", bus_name, miso_str, mosi_str);
+            let pins_tuple = format!("Some(sck_{}), {}, {}", bus_name, miso_str, mosi_str);
 
             spis.push(SpiCtx {
                 bus_name,
