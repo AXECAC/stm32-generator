@@ -173,6 +173,38 @@ pub struct SpiConfig {
     pub mosi: Option<ChosenPin>,
 }
 
+impl SpiConfig {
+    pub fn new(
+        bus: ChosenSpiBus,
+        frequency_mhz: u32,
+        mode: SpiMode,
+        sck: ChosenPin,
+        miso: Option<ChosenPin>,
+        mosi: Option<ChosenPin>,
+    ) -> Result<Self, ConfigError> {
+        if let Some(m) = miso
+            && sck == m
+        {
+            return Err(ConfigError::PinAlreadyInUse(m));
+        }
+
+        if let Some(m) = mosi
+            && (sck == m || miso == Some(m))
+        {
+            return Err(ConfigError::PinAlreadyInUse(m));
+        }
+
+        Ok(Self {
+            bus,
+            frequency_mhz,
+            mode,
+            sck,
+            miso,
+            mosi,
+        })
+    }
+}
+
 impl UsesPins for SpiConfig {
     fn uses_pins(&self) -> Vec<ChosenPin> {
         let mut pins = vec![self.sck];
