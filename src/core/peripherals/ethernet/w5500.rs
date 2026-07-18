@@ -1,8 +1,9 @@
-use std::net::Ipv4Addr;
 use serde::Serialize;
+use std::net::Ipv4Addr;
 
 use crate::core::{
     UsesPins,
+    errors::ConfigError,
     gpio::{ChosenPin, ChosenSpiBus},
     peripherals::ethernet::MacAddr,
 };
@@ -41,6 +42,28 @@ pub struct W5500Config {
 
     /// Режим работы сокета
     pub socket_mode: SocketMode,
+}
+
+impl W5500Config {
+    pub fn new(
+        spi_bus: ChosenSpiBus,
+        cs: ChosenPin,
+        rst: ChosenPin,
+        network: NetworkConfig,
+        socket_mode: SocketMode,
+    ) -> Result<Self, ConfigError> {
+        if cs == rst {
+            return Err(ConfigError::PinAlreadyInUse(rst));
+        }
+
+        Ok(Self {
+            spi_bus,
+            cs,
+            rst,
+            network,
+            socket_mode,
+        })
+    }
 }
 
 impl UsesPins for W5500Config {
