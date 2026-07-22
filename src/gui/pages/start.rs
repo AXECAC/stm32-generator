@@ -1,26 +1,53 @@
-use eframe::egui;
-use crate::gui::pages::Page;
+use relm4::{gtk, ComponentParts, ComponentSender, SimpleComponent, RelmWidgetExt};
+use gtk::prelude::*;
+use crate::core::config::Config;
 
-pub struct StartState {}
-
-impl Default for StartState {
-    fn default() -> Self {
-        Self {}
-    }
+pub struct StartPageModel {
+    pub config: Config,
 }
 
-impl StartState {
-    pub fn render(&mut self, ui: &mut egui::Ui, page: &mut Page) {
-        ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
-            ui.add_space(ui.available_height() / 3.0);
-            ui.heading(egui::RichText::new("Генератор кода STM32 (Black-Pill)").size(24.0).strong());
-            ui.add_space(10.0);
-            ui.label("Добро пожаловать в генератор STM32. Следуйте шагам на верхней панели, чтобы настроить и сгенерировать ваш проект.");
-            
-            ui.add_space(20.0);
-            if ui.button(egui::RichText::new("Начать настройку ->").size(16.0)).clicked() {
-                *page = Page::Pins;
+#[derive(Debug)]
+pub enum StartPageInput {
+    UpdateConfig(Config),
+}
+
+#[derive(Debug)]
+pub enum StartPageOutput {
+    ConfigChanged(Config),
+}
+
+#[relm4::component(pub)]
+impl SimpleComponent for StartPageModel {
+    type Init = Config;
+    type Input = StartPageInput;
+    type Output = StartPageOutput;
+
+    view! {
+        gtk::Box {
+            set_orientation: gtk::Orientation::Vertical,
+            set_spacing: 16,
+            set_margin_all: 32,
+            set_valign: gtk::Align::Center,
+
+            gtk::Label {
+                set_label: "Платформа",
+                add_css_class: "title-1",
+            },
+            gtk::Label {
+                set_label: "Здесь будет выбор платы и микроконтроллера.",
             }
-        });
+        }
+    }
+
+    fn init(init: Self::Init, root: Self::Root, _sender: ComponentSender<Self>) -> ComponentParts<Self> {
+        let model = StartPageModel { config: init };
+        let widgets = view_output!();
+        ComponentParts { model, widgets }
+    }
+
+    fn update(&mut self, message: Self::Input, _sender: ComponentSender<Self>) {
+        match message {
+            StartPageInput::UpdateConfig(cfg) => self.config = cfg,
+        }
     }
 }
