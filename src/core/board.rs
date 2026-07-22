@@ -13,3 +13,8 @@ pub struct Pin {
     pub label: String,
     pub key: String,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum TargetBoard {
+    BlackPill(TargetMcu),
+}
