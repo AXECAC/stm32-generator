@@ -104,6 +104,12 @@ macro_rules! define_mcus {
                     $( Self::$variant(p) => p.into() ),*
                 }
             }
+
+            pub fn default_mode(&self) -> ChosenPinWithMode {
+                match self {
+                    $( Self::$variant(p) => ChosenPinWithMode::$variant(*p, <$mode_type>::default()) ),*
+                }
+            }
         }
 
         impl From<ChosenPinWithMode> for ChosenPin {
