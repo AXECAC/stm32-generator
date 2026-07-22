@@ -7,6 +7,7 @@ use crate::core::{
     errors::ConfigError,
     gpio::{ChosenPin, ChosenPinWithMode, ChosenSpiBus},
     peripherals::Peripheral,
+    board::TargetBoard,
 };
 
 type ConfigResult<T> = Result<T, ConfigError>;
@@ -21,8 +22,9 @@ impl PeripheralId {
 }
 
 /// Вся конфигурация платы и её переферии
-#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Config {
+    pub board: TargetBoard,
     next_periph_id: u64,
     gpio_pins: Vec<PinConfig>,
     spi_buses: Vec<SpiConfig>,
@@ -31,8 +33,14 @@ pub struct Config {
 
 impl Config {
     /// Создает новый пустой [`Config`].
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(board: TargetBoard) -> Self {
+        Self {
+            board,
+            next_periph_id: 0,
+            gpio_pins: Vec::new(),
+            spi_buses: Vec::new(),
+            peripherals: Vec::new(),
+        }
     }
 
     /// Возвращает слайс gpio пинов из [`Config`].
