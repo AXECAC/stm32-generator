@@ -21,7 +21,71 @@ impl StmF4PinMode {
     pub fn template_vars(&self) -> (&'static str, bool, Option<&'static str>) {
         match self {
             Self::Input(input_mode) => (input_mode.method_name(), false, None),
-            Self::Output(out_mode, out_speed) => (out_mode.method_name(), true, Some(out_speed.speed_name())),
+            Self::Output(out_mode, out_speed) => {
+                (out_mode.method_name(), true, Some(out_speed.speed_name()))
+            }
+        }
+    }
+}
+
+impl PinModeUiInfo for StmF4PinMode {
+    fn mode_variants(&self) -> Vec<&'static str> {
+        Self::VARIANTS.to_vec()
+    }
+
+    fn current_mode_index(&self) -> usize {
+        match self {
+            Self::Input(_) => 0,
+            Self::Output(_, _) => 1,
+        }
+    }
+
+    fn set_mode_index(&mut self, idx: usize) {
+        match idx {
+            0 => *self = Self::Input(StmF4InputMode::Floating),
+            1 => *self = Self::Output(StmF4OutputMode::PushPull, StmF4OutputSpeed::Low),
+            _ => {}
+        }
+    }
+
+    fn properties(&self) -> Vec<(&'static str, Vec<&'static str>, usize)> {
+        match self {
+            Self::Input(i) => vec![(
+                "Режим входа",
+                StmF4InputMode::VARIANTS.to_vec(),
+                *i as usize,
+            )],
+            Self::Output(m, s) => vec![
+                (
+                    "Тип выхода",
+                    StmF4OutputMode::VARIANTS.to_vec(),
+                    *m as usize,
+                ),
+                ("Скорость", StmF4OutputSpeed::VARIANTS.to_vec(), *s as usize),
+            ],
+        }
+    }
+
+    fn set_property(&mut self, prop_idx: usize, variant_idx: usize) {
+        match self {
+            Self::Input(i) => {
+                if prop_idx == 0
+                    && let Some(new_i) = StmF4InputMode::from_repr(variant_idx as u32)
+                {
+                    *i = new_i;
+                }
+            }
+            Self::Output(m, s) => {
+                if prop_idx == 0 {
+                    if let Some(new_m) = StmF4OutputMode::from_repr(variant_idx as u32) {
+                        *m = new_m;
+                    }
+                } else if prop_idx == 1
+                    && let Some(new_s) = StmF4OutputSpeed::from_repr(variant_idx as u32)
+                {
+                    *s = new_s;
+                }
+            }
         }
     }
 }
