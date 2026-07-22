@@ -14,7 +14,7 @@ pub struct GeneratorApp {
     page: Page,
     config: Config,
     output_path: String,
-    
+
     start_state: StartState,
     peripherals_state: PeripheralsState,
     pins_state: PinsState,
@@ -26,9 +26,9 @@ impl Default for GeneratorApp {
     fn default() -> Self {
         Self {
             page: Page::Start,
-            config: Config::new(),
+            config: Config::new(crate::core::board::TargetBoard::BlackPill(crate::core::gpio::TargetMcu::StmF401)),
             output_path: "./output/".to_string(),
-            
+
             start_state: StartState::default(),
             peripherals_state: PeripheralsState::default(),
             pins_state: PinsState::default(),
@@ -82,7 +82,7 @@ impl GeneratorApp {
 impl eframe::App for GeneratorApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.render_top_bar(ui);
-        
+
         egui::ScrollArea::vertical().show(ui, |ui: &mut egui::Ui| {
             match self.page {
                 Page::Start => {
