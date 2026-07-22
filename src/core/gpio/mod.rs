@@ -140,6 +140,38 @@ macro_rules! define_mcus {
             }
         }
 
+        impl PinModeUiInfo for ChosenPinWithMode {
+            fn mode_variants(&self) -> Vec<&'static str> {
+                match self {
+                    $( Self::$variant(_, mode) => mode.mode_variants() ),*
+                }
+            }
+
+            fn current_mode_index(&self) -> usize {
+                match self {
+                    $( Self::$variant(_, mode) => mode.current_mode_index() ),*
+                }
+            }
+
+            fn set_mode_index(&mut self, idx: usize) {
+                match self {
+                    $( Self::$variant(_, mode) => mode.set_mode_index(idx) ),*
+                }
+            }
+
+            fn properties(&self) -> Vec<(&'static str, Vec<&'static str>, usize)> {
+                match self {
+                    $( Self::$variant(_, mode) => mode.properties() ),*
+                }
+            }
+
+            fn set_property(&mut self, prop_idx: usize, variant_idx: usize) {
+                match self {
+                    $( Self::$variant(_, mode) => mode.set_property(prop_idx, variant_idx) ),*
+                }
+            }
+        }
+
         /// Шина SPI
         #[derive(Debug, Clone, Copy, PartialEq, Eq, strum::VariantNames, strum::IntoStaticStr, Serialize)]
         pub enum ChosenSpiBus {
