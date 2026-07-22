@@ -34,7 +34,7 @@ impl TargetBoard {
 
     pub fn chip_label(&self) -> String {
         match self.mcu() {
-            TargetMcu::StmF401 => "STM32\nF401".to_string(),
+            TargetMcu::StmF401 => "STM32F401".to_string(),
         }
     }
 
