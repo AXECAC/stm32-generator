@@ -72,6 +72,19 @@ macro_rules! define_mcus {
                     ),*
                 }
             }
+
+            /// Получить все шины SPI для данного микроконтроллера
+            pub fn all_spi_buses(&self) -> Vec<ChosenSpiBus> {
+                match self {
+                    $(
+                        Self::$variant => {
+                            <$spi_bus_type as strum::VariantNames>::VARIANTS.iter().map(|v| {
+                                ChosenSpiBus::$variant(<$spi_bus_type as std::str::FromStr>::from_str(v).unwrap())
+                            }).collect()
+                        }
+                    ),*
+                }
+            }
         }
 
         /// Пин
