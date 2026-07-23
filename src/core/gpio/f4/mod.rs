@@ -42,7 +42,7 @@ impl PinModeUiInfo for StmF4PinMode {
 
     fn set_mode_index(&mut self, idx: usize) {
         match idx {
-            0 => *self = Self::Input(StmF4InputMode::Floating),
+            0 => *self = Self::Input(StmF4InputMode::PullUp),
             1 => *self = Self::Output(StmF4OutputMode::PushPull, StmF4OutputSpeed::Low),
             _ => {}
         }
