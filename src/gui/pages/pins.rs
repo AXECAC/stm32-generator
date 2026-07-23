@@ -53,3 +53,22 @@ pub enum PinsPageInput {
 pub enum PinsPageOutput {
     ConfigChanged(Config),
 }
+
+impl PinsPageModel {
+    fn update_dynamic_properties(&mut self) {
+        let mut guard = self.dynamic_properties.guard();
+        guard.clear();
+
+        if let Some(mode) = &self.current_mode {
+            let props = mode.properties();
+            for (i, (title, variants, selected)) in props.into_iter().enumerate() {
+                guard.push_back((
+                    i,
+                    title.to_string(),
+                    variants.into_iter().map(|s| s.to_string()).collect(),
+                    selected,
+                ));
+            }
+        }
+    }
+}
