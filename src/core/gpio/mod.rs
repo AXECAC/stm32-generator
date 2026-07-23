@@ -177,6 +177,14 @@ macro_rules! define_mcus {
         pub enum ChosenSpiBus {
             $( $variant($spi_bus_type) ),*
         }
+
+        impl ChosenSpiBus {
+            pub fn variant_name(&self) -> &'static str {
+                match self {
+                    $( Self::$variant(p) => p.into() ),*
+                }
+            }
+        }
     };
 }
 
