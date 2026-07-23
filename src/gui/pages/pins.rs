@@ -71,4 +71,30 @@ impl PinsPageModel {
             }
         }
     }
+
+    /// Вспомогательная функция для сборки списка пинов вместе с их статусом
+    /// настройки и алиасами.
+    /// Возвращает вектор кортежей, содержащих:
+    /// - сам пин,
+    /// - алиас пина (если есть)
+    /// - настроен ли пин
+    fn build_pins_with_aliases(
+        board: &TargetBoard,
+        config: &Config,
+    ) -> Vec<(Pin, Option<String>, bool)> {
+        let mut result = Vec::new();
+        let configured_gpio = config.gpio();
+        for pin in board.build_pins() {
+            let mut alias = None;
+            let mut is_configured = false;
+            if let PinType::Gpio(chosen_pin) = pin.pin_type
+                && let Some(cfg) = configured_gpio.iter().find(|p| p.pin.pin() == chosen_pin)
+            {
+                is_configured = true;
+                alias = cfg.label.clone();
+            }
+            result.push((pin, alias, is_configured));
+        }
+        result
+    }
 }
