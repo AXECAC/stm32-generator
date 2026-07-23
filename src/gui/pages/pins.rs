@@ -1,4 +1,4 @@
-use crate::core::board::{Pin, PinType, TargetBoard};
+use crate::core::board::{Pin, PinType};
 use crate::core::config::{Config, PinConfig};
 use crate::core::gpio::{ChosenPinWithMode, PinModeUiInfo};
 use crate::gui::components::chip_canvas::{ChipCanvasInput, ChipCanvasModel, ChipCanvasOutput};
@@ -17,20 +17,21 @@ use relm4::{
 /// а также управляет динамически формируемым списком дополнительных свойств.
 pub struct PinsPageModel {
     pub config: Config,
-    pub selected_pin: Option<Pin>,
-    pub current_alias: String,
+    board_pins: Vec<Pin>,
+    selected_pin: Option<Pin>,
+    current_alias: String,
 
-    pub current_mode: Option<ChosenPinWithMode>,
+    current_mode: Option<ChosenPinWithMode>,
 
-    pub pin_type_model: gtk::StringList,
+    pin_type_model: gtk::StringList,
 
-    pub alias_buffer: gtk::EntryBuffer,
+    alias_buffer: gtk::EntryBuffer,
 
-    pub error_message: Option<String>,
+    error_message: Option<String>,
 
-    pub dynamic_properties: FactoryVecDeque<PropertyRowModel>,
+    dynamic_properties: FactoryVecDeque<PropertyRowModel>,
 
-    pub chip_canvas: Controller<ChipCanvasModel>,
+    chip_canvas: Controller<ChipCanvasModel>,
 }
 
 /// Входящие события страницы настройки пинов.
@@ -81,12 +82,12 @@ impl PinsPageModel {
     /// - алиас пина (если есть)
     /// - настроен ли пин
     fn build_pins_with_aliases(
-        board: &TargetBoard,
+        board_pins: &[Pin],
         config: &Config,
     ) -> Vec<(Pin, Option<String>, bool)> {
         let mut result = Vec::new();
         let configured_gpio = config.gpio();
-        for pin in board.build_pins() {
+        for pin in board_pins {
             let mut alias = None;
             let mut is_configured = false;
             if let PinType::Gpio(chosen_pin) = pin.pin_type
@@ -95,7 +96,7 @@ impl PinsPageModel {
                 is_configured = true;
                 alias = cfg.label.clone();
             }
-            result.push((pin, alias, is_configured));
+            result.push((pin.clone(), alias, is_configured));
         }
         result
     }
@@ -107,7 +108,6 @@ impl PinsPageModel {
         if let Some(pin) = &self.selected_pin
             && let PinType::Gpio(chosen_pin) = pin.pin_type
         {
-            // Сначала удаляем старый конфиг для этого пина
             // Сначала удаляем старый конфиг для этого пина
             self.config.remove_gpio_pin(&chosen_pin);
 
