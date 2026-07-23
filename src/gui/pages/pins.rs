@@ -26,6 +26,8 @@ pub struct PinsPageModel {
 
     pub alias_buffer: gtk::EntryBuffer,
 
+    pub error_message: Option<String>,
+
     pub dynamic_properties: FactoryVecDeque<PropertyRowModel>,
 
     pub chip_canvas: Controller<ChipCanvasModel>,
@@ -96,5 +98,47 @@ impl PinsPageModel {
             result.push((pin, alias, is_configured));
         }
         result
+    }
+
+    /// Пересобирает конфигурацию для текущего выбранного пина на основе
+    /// состояния UI, обновляет глобальную конфигурацию и уведомляет
+    /// родительский компонент.
+    fn rebuild_and_emit_config(&mut self, sender: &ComponentSender<Self>) {
+        if let Some(pin) = &self.selected_pin
+            && let PinType::Gpio(chosen_pin) = pin.pin_type
+        {
+            // Сначала удаляем старый конфиг для этого пина
+            // Сначала удаляем старый конфиг для этого пина
+            self.config.remove_gpio_pin(&chosen_pin);
+
+            // Если выбран какой-то режим (не 0 "Не настроен"), собираем и добавляем новый конфиг
+            if let Some(mode) = self.current_mode {
+                let new_pin_config = PinConfig {
+                    pin: mode,
+                    label: if self.current_alias.is_empty() {
+                        None
+                    } else {
+                        Some(self.current_alias.clone())
+                    },
+                };
+                if let Err(err) = self.config.add_gpio_pin(new_pin_config) {
+                    self.error_message = Some(err.to_string());
+                    return;
+                }
+            }
+
+            self.error_message = None;
+
+            sender
+                .output(PinsPageOutput::ConfigChanged(self.config.clone()))
+                .expect("Failed to emit ConfigChanged output message from PinsPageModel");
+
+            // Очищаем выбор, чтобы панель скрылась, а пин вернул свой обычный цвет (зеленый если настроен)
+            self.selected_pin = None;
+            self.chip_canvas
+                .sender()
+                .send(ChipCanvasInput::ClearSelection)
+                .expect("Failed to send ClearSelection message to ChipCanvas component");
+        }
     }
 }
