@@ -5,6 +5,8 @@ use std::path::PathBuf;
 
 use crate::core::generator::{context::TemplateContext, render, writer::create_project};
 
+const FAILED_SEND_ERR_MES: &str = "Worker failed to send progress message (receiver disconnected)";
+
 /// Сообщения, в GUI о процессе генерации проекта
 #[derive(Debug)]
 pub enum WorkerMessage {
@@ -23,10 +25,12 @@ pub fn start_generation(config: Config, output_dir: PathBuf) -> Receiver<WorkerM
     let (sender, receiver) = crossbeam_channel::unbounded();
 
     std::thread::spawn(move || {
-        let _ = sender.send(WorkerMessage::Progress {
-            percent: 10,
-            status: "Сборка контекста шаблона...".to_string(),
-        });
+        sender
+            .send(WorkerMessage::Progress {
+                percent: 10,
+                status: "Сборка контекста шаблона...".to_string(),
+            })
+            .expect(FAILED_SEND_ERR_MES);
 
         let project_name = output_dir
             .file_name()
@@ -37,36 +41,48 @@ pub fn start_generation(config: Config, output_dir: PathBuf) -> Receiver<WorkerM
         let context = match TemplateContext::from_config(&config, project_name) {
             Ok(ctx) => ctx,
             Err(e) => {
-                let _ = sender.send(WorkerMessage::Error { message: e });
+                sender
+                    .send(WorkerMessage::Error { message: e })
+                    .expect(FAILED_SEND_ERR_MES);
                 return;
             }
         };
 
-        let _ = sender.send(WorkerMessage::Progress {
-            percent: 50,
-            status: "Рендеринг шаблонов Jinja...".to_string(),
-        });
+        sender
+            .send(WorkerMessage::Progress {
+                percent: 50,
+                status: "Рендеринг шаблонов Jinja...".to_string(),
+            })
+            .expect(FAILED_SEND_ERR_MES);
 
         let files = match render(&context) {
             Ok(f) => f,
             Err(e) => {
-                let _ = sender.send(WorkerMessage::Error { message: e });
+                sender
+                    .send(WorkerMessage::Error { message: e })
+                    .expect(FAILED_SEND_ERR_MES);
                 return;
             }
         };
 
-        let _ = sender.send(WorkerMessage::Progress {
-            percent: 90,
-            status: "Запись файлов на диск...".to_string(),
-        });
+        sender
+            .send(WorkerMessage::Progress {
+                percent: 90,
+                status: "Запись файлов на диск...".to_string(),
+            })
+            .expect(FAILED_SEND_ERR_MES);
 
         if let Err(e) = create_project(&output_dir, files) {
-            let _ = sender.send(WorkerMessage::Error { message: e });
+            sender
+                .send(WorkerMessage::Error { message: e })
+                .expect(FAILED_SEND_ERR_MES);
             return;
         }
 
         // Успешное завершение
-        let _ = sender.send(WorkerMessage::Done { output_dir });
+        sender
+            .send(WorkerMessage::Done { output_dir })
+            .expect(FAILED_SEND_ERR_MES);
     });
 
     receiver
