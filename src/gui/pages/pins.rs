@@ -57,6 +57,236 @@ pub enum PinsPageOutput {
     ConfigChanged(Config),
 }
 
+#[relm4::component(pub)]
+impl SimpleComponent for PinsPageModel {
+    type Init = Config;
+    type Input = PinsPageInput;
+    type Output = PinsPageOutput;
+
+    view! {
+        gtk::Paned {
+            set_orientation: gtk::Orientation::Horizontal,
+            set_wide_handle: true,
+            set_position: 350,
+            set_hexpand: true,
+            set_vexpand: true,
+
+            #[wrap(Some)]
+            set_start_child = &gtk::Box {
+                set_orientation: gtk::Orientation::Vertical,
+                set_margin_all: 16,
+                set_spacing: 16,
+
+                #[name = "error_label"]
+                gtk::Label {
+                    #[watch]
+                    set_text: model.error_message.as_deref().unwrap_or(""),
+                    #[watch]
+                    set_visible: model.error_message.is_some(),
+                    add_css_class: "error",
+                    set_wrap: true,
+                },
+
+                #[name = "settings_group"]
+                adw::PreferencesGroup {
+                    set_title: "Настройка пина",
+                    set_width_request: 340,
+                    #[watch]
+                    set_visible: model.selected_pin.is_some(),
+
+                    #[name = "selected_pin_row"]
+                    adw::ActionRow {
+                        set_title: "Выбранный пин",
+                        #[watch]
+                        set_subtitle: model.selected_pin.as_ref().map(|p| p.label.as_str()).unwrap_or(""),
+                    },
+
+                    #[name = "pin_type_row"]
+                    adw::ComboRow {
+                        set_title: "Режим пина",
+                        #[watch]
+                        set_selected: match &model.current_mode {
+                            None => 0,
+                            Some(m) => (m.current_mode_index() + 1) as u32,
+                        },
+                        set_model: Some(&model.pin_type_model),
+                        connect_selected_notify[sender] => move |row| {
+                            let idx = row.selected() as usize;
+                            sender.input(PinsPageInput::PinTypeChanged(idx));
+                        }
+                    },
+
+                    #[name = "pin_alias_row"]
+                    adw::ActionRow {
+                        set_title: "Имя переменной",
+                        #[watch]
+                        set_visible: model.current_mode.is_some(),
+                        add_suffix = &gtk::Entry {
+                            set_buffer: &model.alias_buffer,
+                            set_max_length: 25,
+                            set_placeholder_text: Some("pin_name"),
+                            set_valign: gtk::Align::Center,
+                            connect_changed[sender] => move |entry| {
+                                sender.input(PinsPageInput::AliasChanged(entry.text().to_string()));
+                            },
+                            connect_activate[sender] => move |_| {
+                                sender.input(PinsPageInput::ApplyPinConfig);
+                            }
+                        }
+                    },
+                },
+
+                #[local_ref]
+                dynamic_group_widget -> adw::PreferencesGroup {
+                    set_title: "Дополнительные свойства",
+                    #[watch]
+                    set_visible: model.current_mode.is_some(),
+                },
+
+                gtk::Button {
+                    set_label: "Подтвердить",
+                    set_margin_top: 16,
+                    add_css_class: "suggested-action",
+                    #[watch]
+                    set_visible: model.selected_pin.is_some(),
+                    connect_clicked[sender] => move |_| {
+                        sender.input(PinsPageInput::ApplyPinConfig);
+                    }
+                }
+            },
+
+            #[wrap(Some)]
+            set_end_child = &gtk::ScrolledWindow {
+                set_hexpand: true,
+                set_vexpand: true,
+                set_policy: (gtk::PolicyType::Automatic, gtk::PolicyType::Automatic),
+
+                #[wrap(Some)]
+                set_child = &gtk::Box {
+                    set_halign: gtk::Align::Center,
+                    set_valign: gtk::Align::Center,
+
+                    #[local_ref]
+                    canvas_widget -> gtk::DrawingArea {}
+                }
+            }
+        }
+    }
+
+    fn init(
+        init: Self::Init,
+        root: Self::Root,
+        sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
+        let board_pins = init.board.build_pins();
+        let pins_data = Self::build_pins_with_aliases(&board_pins, &init);
+        let chip_canvas = ChipCanvasModel::builder()
+            .launch((init.board.chip_label().to_string(), pins_data))
+            .forward(sender.input_sender(), |output| match output {
+                ChipCanvasOutput::PinSelected(key) => PinsPageInput::PinSelected(key),
+            });
+
+        let dynamic_properties = FactoryVecDeque::builder()
+            .launch(adw::PreferencesGroup::default())
+            .forward(sender.input_sender(), |output| match output {
+                PropertyRowOutput::SelectionChanged(p, v) => PinsPageInput::PropertyChanged(p, v),
+            });
+
+        let mut model = PinsPageModel {
+            config: init,
+            board_pins,
+            selected_pin: None,
+            current_alias: String::new(),
+            current_mode: None,
+            pin_type_model: gtk::StringList::new(&[]),
+            alias_buffer: gtk::EntryBuffer::new(None::<&str>),
+            error_message: None,
+            dynamic_properties,
+            chip_canvas,
+        };
+
+        model.update_dynamic_properties();
+
+        let dynamic_group_widget = model.dynamic_properties.widget();
+        let canvas_widget = model.chip_canvas.widget();
+        let widgets = view_output!();
+        ComponentParts { model, widgets }
+    }
+
+    fn update(&mut self, message: Self::Input, sender: ComponentSender<Self>) {
+        match message {
+            PinsPageInput::UpdateConfig(cfg) => {
+                self.config = cfg;
+                self.error_message = None;
+                self.board_pins = self.config.board.build_pins();
+                let pins_data = Self::build_pins_with_aliases(&self.board_pins, &self.config);
+                if let Err(e) = self.chip_canvas.sender().send(ChipCanvasInput::UpdatePins(pins_data)) {
+                    log::error!("Не удалось отправить UpdatePins в компонент ChipCanvas: {:?}", e);
+                }
+            }
+            PinsPageInput::PinSelected(key) => {
+                self.error_message = None;
+                if let Some(pin) = self.board_pins.iter().find(|p| p.key == key) {
+                    self.selected_pin = Some(pin.clone());
+
+                    self.current_mode = None;
+                    self.current_alias.clear();
+                    self.alias_buffer.set_text("");
+
+                    if let PinType::Gpio(chosen_pin) = pin.pin_type {
+                        let mut v = vec!["Not Configured"];
+                        v.extend(chosen_pin.default_mode().mode_variants());
+                        self.pin_type_model
+                            .splice(0, self.pin_type_model.n_items(), v.as_slice());
+
+                        if let Some(pin_cfg) = self
+                            .config
+                            .gpio()
+                            .iter()
+                            .find(|p| p.pin.pin() == chosen_pin)
+                        {
+                            if let Some(label) = &pin_cfg.label {
+                                self.current_alias = label.clone();
+                                self.alias_buffer.set_text(label);
+                            }
+
+                            self.current_mode = Some(pin_cfg.pin);
+                        }
+                    }
+                    self.update_dynamic_properties();
+                }
+            }
+            PinsPageInput::AliasChanged(alias) => {
+                self.current_alias = alias;
+            }
+            PinsPageInput::ApplyPinConfig => {
+                self.rebuild_and_emit_config(&sender);
+            }
+            PinsPageInput::PinTypeChanged(idx) => {
+                if idx == 0 {
+                    self.current_mode = None;
+                } else {
+                    if let Some(pin) = &self.selected_pin
+                        && let PinType::Gpio(chosen_pin) = pin.pin_type
+                    {
+                        let mut mode = self
+                            .current_mode
+                            .unwrap_or_else(|| chosen_pin.default_mode());
+                        mode.set_mode_index(idx - 1);
+                        self.current_mode = Some(mode);
+                    }
+                }
+                self.update_dynamic_properties();
+            }
+            PinsPageInput::PropertyChanged(prop_idx, variant_idx) => {
+                if let Some(ref mut mode) = self.current_mode {
+                    mode.set_property(prop_idx, variant_idx);
+                }
+            }
+        }
+    }
+}
+
 impl PinsPageModel {
     fn update_dynamic_properties(&mut self) {
         let mut guard = self.dynamic_properties.guard();
@@ -129,16 +359,15 @@ impl PinsPageModel {
 
             self.error_message = None;
 
-            sender
-                .output(PinsPageOutput::ConfigChanged(self.config.clone()))
-                .expect("Failed to emit ConfigChanged output message from PinsPageModel");
+            if let Err(e) = sender.output(PinsPageOutput::ConfigChanged(self.config.clone())) {
+                log::error!("Не удалось отправить ConfigChanged из PinsPageModel: {:?}", e);
+            }
 
             // Очищаем выбор, чтобы панель скрылась, а пин вернул свой обычный цвет (зеленый если настроен)
             self.selected_pin = None;
-            self.chip_canvas
-                .sender()
-                .send(ChipCanvasInput::ClearSelection)
-                .expect("Failed to send ClearSelection message to ChipCanvas component");
+            if let Err(e) = self.chip_canvas.sender().send(ChipCanvasInput::ClearSelection) {
+                log::error!("Не удалось отправить ClearSelection в компонент ChipCanvas: {:?}", e);
+            }
         }
     }
 }
