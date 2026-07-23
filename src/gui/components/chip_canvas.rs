@@ -160,7 +160,9 @@ impl SimpleComponent for ChipCanvasModel {
 
                 if let Some(key) = closest_pin {
                     self.state.borrow_mut().selected_pin_key = Some(key.clone());
-                    let _ = sender.output(ChipCanvasOutput::PinSelected(key));
+                    sender
+                        .output(ChipCanvasOutput::PinSelected(key))
+                        .expect("Failed to emit PinSelected output message from ChipCanvasModel");
                     redraw = true;
                 }
             }
@@ -201,7 +203,7 @@ impl ChipCanvasModel {
 
         // Background
         set_color!(ctx, colors::BG);
-        let _ = ctx.paint();
+        ctx.paint()?;
 
         Self::draw_chip_body(state, ctx, &layout)?;
 
@@ -222,13 +224,13 @@ impl ChipCanvasModel {
         // Тело чипа (фон)
         set_color!(ctx, colors::CHIP_BG);
         ctx.rectangle(layout.chip_x, layout.chip_y, layout.chip_w, layout.chip_h);
-        let _ = ctx.fill();
+        ctx.fill()?;
 
         // Обводка чипа
         set_color!(ctx, colors::CHIP_BORDER);
         ctx.set_line_width(2.0);
         ctx.rectangle(layout.chip_x, layout.chip_y, layout.chip_w, layout.chip_h);
-        let _ = ctx.stroke();
+        ctx.stroke()?;
 
         // Текст по центру
         set_color!(ctx, colors::CHIP_TEXT);
@@ -240,7 +242,7 @@ impl ChipCanvasModel {
         ctx.set_font_size(28.0);
         let extents = ctx.text_extents(&state.chip_label)?;
         ctx.move_to(layout.cx - extents.width() / 2.0, layout.cy + extents.height() / 2.0);
-        let _ = ctx.show_text(&state.chip_label);
+        ctx.show_text(&state.chip_label)?;
 
         Ok(())
     }
@@ -269,7 +271,7 @@ impl ChipCanvasModel {
         }
 
         ctx.rectangle(rect.x, rect.y, rect.w, rect.h);
-        let _ = ctx.fill();
+        ctx.fill()?;
 
         // Обводка ножки
         if is_selected {
@@ -280,7 +282,7 @@ impl ChipCanvasModel {
             ctx.set_line_width(1.0);
         }
         ctx.rectangle(rect.x, rect.y, rect.w, rect.h);
-        let _ = ctx.stroke();
+        ctx.stroke()?;
 
         Self::draw_pin_label(ctx, pin, is_selected, rect)?;
 
@@ -322,13 +324,13 @@ impl ChipCanvasModel {
                     center_x - extents.width() / 2.0,
                     center_y + extents.height() / 2.0,
                 );
-                let _ = ctx.show_text(&text);
+                ctx.show_text(&text)?;
             }
             1 | 3 => {
                 ctx.translate(center_x, center_y);
                 ctx.rotate(-PI / 2.0);
                 ctx.move_to(-extents.width() / 2.0, extents.height() / 2.0);
-                let _ = ctx.show_text(&text);
+                ctx.show_text(&text)?;
             }
             _ => unreachable!(),
         }
@@ -357,26 +359,26 @@ impl ChipCanvasModel {
                     rect.x - a_ext.width() - 8.0,
                     center_y + a_ext.height() / 2.0,
                 );
-                let _ = ctx.show_text(alias);
+                ctx.show_text(alias)?;
             }
             2 => {
                 ctx.move_to(
                     rect.x + rect.w + 8.0,
                     center_y + a_ext.height() / 2.0,
                 );
-                let _ = ctx.show_text(alias);
+                ctx.show_text(alias)?;
             }
             1 => {
                 ctx.translate(center_x, rect.y + rect.h + 8.0 + a_ext.width());
                 ctx.rotate(-PI / 2.0);
                 ctx.move_to(0.0, a_ext.height() / 2.0);
-                let _ = ctx.show_text(alias);
+                ctx.show_text(alias)?;
             }
             3 => {
                 ctx.translate(center_x, rect.y - 8.0);
                 ctx.rotate(-PI / 2.0);
                 ctx.move_to(0.0, a_ext.height() / 2.0);
-                let _ = ctx.show_text(alias);
+                ctx.show_text(alias)?;
             }
             _ => unreachable!(),
         }

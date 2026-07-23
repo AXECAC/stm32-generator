@@ -49,7 +49,9 @@ impl FactoryComponent for PropertyRowModel {
             set_selected: self.selected as u32,
 
             connect_selected_notify[sender, prop_idx = self.prop_idx] => move |row| {
-                sender.output(PropertyRowOutput::SelectionChanged(prop_idx, row.selected() as usize)).unwrap();
+                sender
+                    .output(PropertyRowOutput::SelectionChanged(prop_idx, row.selected() as usize))
+                    .expect("Failed to emit SelectionChanged output message from PropertyRowModel");
             }
         }
     }
