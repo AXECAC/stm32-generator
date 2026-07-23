@@ -47,7 +47,7 @@ struct PinRect {
 /// Модель компонента холста микроконтроллера.
 pub struct ChipCanvasModel {
     state: Rc<RefCell<DrawingState>>,
-    area_tracker: Rc<RefCell<Option<gtk::DrawingArea>>>,
+    area_tracker: Option<gtk::DrawingArea>,
 }
 
 /// Обновление пинов, сброс выбора, клики мыши.
@@ -97,13 +97,13 @@ impl SimpleComponent for ChipCanvasModel {
             selected_pin_key: None,
         }));
 
-        let model = ChipCanvasModel {
+        let mut model = ChipCanvasModel {
             state: state.clone(),
-            area_tracker: Rc::new(RefCell::new(None)),
+            area_tracker: None,
         };
 
         let widgets = view_output!();
-        *model.area_tracker.borrow_mut() = Some(widgets.drawing_area.clone());
+        model.area_tracker = Some(widgets.drawing_area.clone());
 
         // Первоначальный запрос размера
         let (total_size, _) = Self::get_layout(&state.borrow(), 0.0, 0.0);
@@ -114,7 +114,8 @@ impl SimpleComponent for ChipCanvasModel {
         widgets
             .drawing_area
             .set_draw_func(move |_area, ctx, width, height| {
-                if let Err(e) = Self::draw_canvas(&state.borrow(), ctx, width as f64, height as f64) {
+                if let Err(e) = Self::draw_canvas(&state.borrow(), ctx, width as f64, height as f64)
+                {
                     eprintln!("Canvas draw error: {}", e);
                 }
             });
@@ -168,7 +169,7 @@ impl SimpleComponent for ChipCanvasModel {
             }
         }
 
-        if let Some(area) = &*self.area_tracker.borrow() {
+        if let Some(area) = &self.area_tracker {
             if request_resize {
                 let (total_size, _) = Self::get_layout(&self.state.borrow(), 0.0, 0.0);
                 area.set_size_request(total_size as i32, total_size as i32);
@@ -192,13 +193,29 @@ impl ChipCanvasModel {
         let chip_x = cx - chip_w / 2.0;
         let chip_y = cy - chip_h / 2.0;
 
-        (total_size, ChipLayout {
-            pins_per_side, pin_length, pin_thickness, chip_x, chip_y, chip_w, chip_h, cx, cy
-        })
+        (
+            total_size,
+            ChipLayout {
+                pins_per_side,
+                pin_length,
+                pin_thickness,
+                chip_x,
+                chip_y,
+                chip_w,
+                chip_h,
+                cx,
+                cy,
+            },
+        )
     }
 
     /// Главная функция отрисовки всего холста. Очищает фон и вызывает остальные функции отрисовки.
-    fn draw_canvas(state: &DrawingState, ctx: &cairo::Context, w: f64, h: f64) -> Result<(), cairo::Error> {
+    fn draw_canvas(
+        state: &DrawingState,
+        ctx: &cairo::Context,
+        w: f64,
+        h: f64,
+    ) -> Result<(), cairo::Error> {
         let (_, layout) = Self::get_layout(state, w, h);
 
         // Background
@@ -241,7 +258,10 @@ impl ChipCanvasModel {
         );
         ctx.set_font_size(28.0);
         let extents = ctx.text_extents(&state.chip_label)?;
-        ctx.move_to(layout.cx - extents.width() / 2.0, layout.cy + extents.height() / 2.0);
+        ctx.move_to(
+            layout.cx - extents.width() / 2.0,
+            layout.cy + extents.height() / 2.0,
+        );
         ctx.show_text(&state.chip_label)?;
 
         Ok(())
@@ -362,10 +382,7 @@ impl ChipCanvasModel {
                 ctx.show_text(alias)?;
             }
             2 => {
-                ctx.move_to(
-                    rect.x + rect.w + 8.0,
-                    center_y + a_ext.height() / 2.0,
-                );
+                ctx.move_to(rect.x + rect.w + 8.0, center_y + a_ext.height() / 2.0);
                 ctx.show_text(alias)?;
             }
             1 => {
