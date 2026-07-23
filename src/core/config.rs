@@ -4,10 +4,10 @@ use serde::Serialize;
 // TODO: добавить тесты для методов структур
 use crate::core::{
     UsesPins,
+    board::TargetBoard,
     errors::ConfigError,
     gpio::{ChosenPin, ChosenPinWithMode, ChosenSpiBus},
     peripherals::Peripheral,
-    board::TargetBoard,
 };
 
 type ConfigResult<T> = Result<T, ConfigError>;
@@ -161,12 +161,9 @@ pub struct PinConfig {
 
 impl PinConfig {
     pub fn label(&self) -> String {
-        self.label.clone().unwrap_or_else(|| {
-            let s: &'static str = match self.pin.pin() {
-                ChosenPin::StmF401(p) => p.into(),
-            };
-            format!("p{}", s.to_lowercase())
-        })
+        self.label
+            .clone()
+            .unwrap_or_else(|| format!("p{}", self.pin.pin().variant_name().to_lowercase()))
     }
 }
 
