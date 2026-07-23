@@ -44,9 +44,21 @@ impl TargetBoard {
                 let mut pins = Vec::new();
 
                 // Начальные пины питания
-                pins.push(Pin { pin_type: PinType::Power, label: "VBAT".into(), key: "VBAT".into() });
-                pins.push(Pin { pin_type: PinType::Power, label: "3V3".into(), key: "3V3".into() });
-                pins.push(Pin { pin_type: PinType::Power, label: "GND".into(), key: "GND".into() });
+                pins.push(Pin {
+                    pin_type: PinType::Power,
+                    label: "VBAT".into(),
+                    key: "VBAT".into(),
+                });
+                pins.push(Pin {
+                    pin_type: PinType::Power,
+                    label: "3V3".into(),
+                    key: "3V3".into(),
+                });
+                pins.push(Pin {
+                    pin_type: PinType::Power,
+                    label: "GND".into(),
+                    key: "GND".into(),
+                });
 
                 // Пины МК
                 for pin in mcu.all_pins() {
@@ -58,11 +70,26 @@ impl TargetBoard {
                     });
                 }
 
-                // Подмешиваем еще питание
-                pins.insert(10, Pin { pin_type: PinType::Power, label: "5V".into(), key: "5V".into() });
-                pins.insert(11, Pin { pin_type: PinType::Power, label: "GND".into(), key: "GND".into() });
-                pins.insert(25, Pin { pin_type: PinType::Power, label: "3V3".into(), key: "3V3".into() });
-                pins.insert(26, Pin { pin_type: PinType::Power, label: "GND".into(), key: "GND".into() });
+                pins.push(Pin {
+                    pin_type: PinType::Power,
+                    label: "5V".into(),
+                    key: "5V".into(),
+                });
+                pins.push(Pin {
+                    pin_type: PinType::Power,
+                    label: "GND".into(),
+                    key: "GND".into(),
+                });
+                pins.push(Pin {
+                    pin_type: PinType::Power,
+                    label: "3V3".into(),
+                    key: "3V3".into(),
+                });
+                pins.push(Pin {
+                    pin_type: PinType::Power,
+                    label: "GND".into(),
+                    key: "GND".into(),
+                });
 
                 pins
             }
