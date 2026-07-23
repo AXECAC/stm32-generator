@@ -158,13 +158,39 @@ impl SimpleComponent for AppModel {
         match message {
             AppInput::ConfigChanged(cfg) => {
                 self.config = cfg.clone();
+                let failed_message = "Не удалось отправить UpdateConfig в";
 
-                // Broadcast to all pages
-                self.start_page.sender().send(StartPageInput::UpdateConfig(cfg.clone())).unwrap();
-                self.pins_page.sender().send(PinsPageInput::UpdateConfig(cfg.clone())).unwrap();
-                self.spi_page.sender().send(SpiPageInput::UpdateConfig(cfg.clone())).unwrap();
-                self.peripherals_page.sender().send(PeripheralsPageInput::UpdateConfig(cfg.clone())).unwrap();
-                self.run_page.sender().send(RunPageInput::UpdateConfig(cfg)).unwrap();
+                if let Err(e) = self
+                    .start_page
+                    .sender()
+                    .send(StartPageInput::UpdateConfig(cfg.clone()))
+                {
+                    log::error!("{} StartPageModel: {:?}", failed_message, e);
+                }
+                if let Err(e) = self
+                    .pins_page
+                    .sender()
+                    .send(PinsPageInput::UpdateConfig(cfg.clone()))
+                {
+                    log::error!("{} PinsPageModel: {:?}", failed_message, e);
+                }
+                if let Err(e) = self
+                    .spi_page
+                    .sender()
+                    .send(SpiPageInput::UpdateConfig(cfg.clone()))
+                {
+                    log::error!("{} SpiPageModel: {:?}", failed_message, e);
+                }
+                if let Err(e) = self
+                    .peripherals_page
+                    .sender()
+                    .send(PeripheralsPageInput::UpdateConfig(cfg.clone()))
+                {
+                    log::error!("{} PeripheralsPageModel: {:?}", failed_message, e);
+                }
+                if let Err(e) = self.run_page.sender().send(RunPageInput::UpdateConfig(cfg)) {
+                    log::error!("{} RunPageModel: {:?}", failed_message, e);
+                }
             }
         }
     }
