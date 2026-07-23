@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use crate::core::generator::{context::TemplateContext, render, writer::create_project};
 
-const FAILED_SEND_ERR_MES: &str = "Worker failed to send progress message (receiver disconnected)";
+const FAILED_SEND_ERR_MES: &str = "Worker не смог отправить прогресс (receiver отключен)";
 
 /// Сообщения, в GUI о процессе генерации проекта
 #[derive(Debug)]
@@ -25,12 +25,19 @@ pub fn start_generation(config: Config, output_dir: PathBuf) -> Receiver<WorkerM
     let (sender, receiver) = crossbeam_channel::unbounded();
 
     std::thread::spawn(move || {
-        sender
-            .send(WorkerMessage::Progress {
-                percent: 10,
-                status: "Сборка контекста шаблона...".to_string(),
-            })
-            .expect(FAILED_SEND_ERR_MES);
+        macro_rules! send_or_return {
+            ($msg:expr) => {
+                if let Err(e) = sender.send($msg) {
+                    log::error!("{}: {}", FAILED_SEND_ERR_MES, e);
+                    return;
+                }
+            };
+        }
+
+        send_or_return!(WorkerMessage::Progress {
+            percent: 10,
+            status: "Сборка контекста шаблона...".to_string(),
+        });
 
         let project_name = output_dir
             .file_name()
@@ -41,48 +48,36 @@ pub fn start_generation(config: Config, output_dir: PathBuf) -> Receiver<WorkerM
         let context = match TemplateContext::from_config(&config, project_name) {
             Ok(ctx) => ctx,
             Err(e) => {
-                sender
-                    .send(WorkerMessage::Error { message: e })
-                    .expect(FAILED_SEND_ERR_MES);
+                send_or_return!(WorkerMessage::Error { message: e });
                 return;
             }
         };
 
-        sender
-            .send(WorkerMessage::Progress {
-                percent: 50,
-                status: "Рендеринг шаблонов Jinja...".to_string(),
-            })
-            .expect(FAILED_SEND_ERR_MES);
+        send_or_return!(WorkerMessage::Progress {
+            percent: 50,
+            status: "Рендеринг шаблонов Jinja...".to_string(),
+        });
 
         let files = match render(&context) {
             Ok(f) => f,
             Err(e) => {
-                sender
-                    .send(WorkerMessage::Error { message: e })
-                    .expect(FAILED_SEND_ERR_MES);
+                send_or_return!(WorkerMessage::Error { message: e });
                 return;
             }
         };
 
-        sender
-            .send(WorkerMessage::Progress {
-                percent: 90,
-                status: "Запись файлов на диск...".to_string(),
-            })
-            .expect(FAILED_SEND_ERR_MES);
+        send_or_return!(WorkerMessage::Progress {
+            percent: 90,
+            status: "Запись файлов на диск...".to_string(),
+        });
 
         if let Err(e) = create_project(&output_dir, files) {
-            sender
-                .send(WorkerMessage::Error { message: e })
-                .expect(FAILED_SEND_ERR_MES);
+            send_or_return!(WorkerMessage::Error { message: e });
             return;
         }
 
         // Успешное завершение
-        sender
-            .send(WorkerMessage::Done { output_dir })
-            .expect(FAILED_SEND_ERR_MES);
+        send_or_return!(WorkerMessage::Done { output_dir });
     });
 
     receiver
