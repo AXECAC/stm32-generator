@@ -37,9 +37,7 @@ pub struct PinCtx {
 
 impl PinCtx {
     pub fn new(pin: &ChosenPin) -> Self {
-        match pin {
-            ChosenPin::StmF401(p) => Self::from_str(p.into()),
-        }
+        Self::from_str(pin.variant_name())
     }
 
     fn from_str(s: &'static str) -> Self {
