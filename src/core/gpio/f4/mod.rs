@@ -13,7 +13,7 @@ pub enum StmF4PinMode {
 
 impl Default for StmF4PinMode {
     fn default() -> Self {
-        Self::Input(StmF4InputMode::Floating)
+        Self::Input(StmF4InputMode::PullUp)
     }
 }
 
@@ -22,7 +22,7 @@ impl StmF4PinMode {
         match self {
             Self::Input(input_mode) => (input_mode.method_name(), false, None),
             Self::Output(out_mode, out_speed) => {
-                (out_mode.method_name(), true, Some(out_speed.speed_name()))
+                (out_mode.method_name(), true, Some(out_speed.into()))
             }
         }
     }
@@ -119,30 +119,19 @@ impl StmF4InputMode {
 )]
 #[repr(u32)]
 pub enum StmF4OutputSpeed {
-    /// ~4 МГц. Для медленных сигналов.
+    /// ~4 МГц.
     Low,
 
-    /// ~25 МГц. Для общего применения.
+    /// ~25 МГц.
     Medium,
 
-    /// ~50 МГц. Для быстрого SPI, SDIO.
+    /// ~50 МГц.
     High,
 
-    /// ~100 МГц. Для LTDC, FMC, USB HS.
+    /// ~100 МГц.
     /// На Black Pill используйте с осторожностью - плата не рассчитана на такие частоты.
     #[strum(to_string = "Very high")]
     VeryHigh,
-}
-
-impl StmF4OutputSpeed {
-    pub fn speed_name(&self) -> &'static str {
-        match self {
-            Self::Low => "Low",
-            Self::Medium => "Medium",
-            Self::High => "High",
-            Self::VeryHigh => "VeryHigh",
-        }
-    }
 }
 
 /// Тип выхода GPIO на STM32F4.
@@ -152,13 +141,11 @@ impl StmF4OutputSpeed {
 #[repr(u32)]
 pub enum StmF4OutputMode {
     /// Активно управляет и высоким, и низким уровнем.
-    /// Стандартный режим для большинства задач.
     #[strum(to_string = "Push pull")]
     PushPull,
 
     /// Активно управляет только низким уровнем.
     /// Высокий уровень - через внешний pull-up резистор.
-    /// Используется для I2C (SDA, SCL).
     #[strum(to_string = "Open drain")]
     OpenDrain,
 }
