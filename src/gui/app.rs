@@ -1,16 +1,20 @@
-use relm4::{gtk, adw, ComponentParts, ComponentSender, SimpleComponent, Component, Controller, ComponentController};
-use gtk::prelude::*;
 use adw::prelude::*;
+use relm4::{
+    Component, ComponentController, ComponentParts, ComponentSender, Controller, SimpleComponent,
+    adw, gtk,
+};
 
-use crate::core::config::Config;
 use crate::core::board::TargetBoard;
+use crate::core::config::Config;
 use crate::core::gpio::TargetMcu;
 
-use crate::gui::pages::start::{StartPageModel, StartPageOutput, StartPageInput};
-use crate::gui::pages::pins::{PinsPageModel, PinsPageOutput, PinsPageInput};
-use crate::gui::pages::spi::{SpiPageModel, SpiPageOutput, SpiPageInput};
-use crate::gui::pages::peripherals::{PeripheralsPageModel, PeripheralsPageOutput, PeripheralsPageInput};
-use crate::gui::pages::run::{RunPageModel, RunPageOutput, RunPageInput};
+use crate::gui::pages::peripherals::{
+    PeripheralsPageInput, PeripheralsPageModel, PeripheralsPageOutput,
+};
+use crate::gui::pages::pins::{PinsPageInput, PinsPageModel, PinsPageOutput};
+use crate::gui::pages::run::{RunPageInput, RunPageModel, RunPageOutput};
+use crate::gui::pages::spi::{SpiPageInput, SpiPageModel, SpiPageOutput};
+use crate::gui::pages::start::{StartPageInput, StartPageModel, StartPageOutput};
 
 pub struct AppModel {
     config: Config,
@@ -61,7 +65,7 @@ impl SimpleComponent for AppModel {
 
                         add_titled[Some("start"), "Начало"] = &gtk::Box {
                             #[local_ref]
-                            start_widget -> gtk::Box {}
+                            start_widget -> adw::StatusPage {}
                         },
 
                         add_titled[Some("pins"), "Пины"] = &gtk::Box {
@@ -96,23 +100,26 @@ impl SimpleComponent for AppModel {
     ) -> ComponentParts<Self> {
         let config = Config::new(TargetBoard::BlackPill(TargetMcu::StmF401));
 
-        let start_page = StartPageModel::builder()
-            .launch(config.clone())
-            .forward(sender.input_sender(), |msg| match msg {
+        let start_page = StartPageModel::builder().launch(config.clone()).forward(
+            sender.input_sender(),
+            |msg| match msg {
                 StartPageOutput::ConfigChanged(cfg) => AppInput::ConfigChanged(cfg),
-            });
+            },
+        );
 
-        let pins_page = PinsPageModel::builder()
-            .launch(config.clone())
-            .forward(sender.input_sender(), |msg| match msg {
-                PinsPageOutput::ConfigChanged(cfg) => AppInput::ConfigChanged(cfg),
-            });
+        let pins_page =
+            PinsPageModel::builder()
+                .launch(config.clone())
+                .forward(sender.input_sender(), |msg| match msg {
+                    PinsPageOutput::ConfigChanged(cfg) => AppInput::ConfigChanged(cfg),
+                });
 
-        let spi_page = SpiPageModel::builder()
-            .launch(config.clone())
-            .forward(sender.input_sender(), |msg| match msg {
-                SpiPageOutput::ConfigChanged(cfg) => AppInput::ConfigChanged(cfg),
-            });
+        let spi_page =
+            SpiPageModel::builder()
+                .launch(config.clone())
+                .forward(sender.input_sender(), |msg| match msg {
+                    SpiPageOutput::ConfigChanged(cfg) => AppInput::ConfigChanged(cfg),
+                });
 
         let peripherals_page = PeripheralsPageModel::builder()
             .launch(config.clone())
@@ -120,11 +127,12 @@ impl SimpleComponent for AppModel {
                 PeripheralsPageOutput::ConfigChanged(cfg) => AppInput::ConfigChanged(cfg),
             });
 
-        let run_page = RunPageModel::builder()
-            .launch(config.clone())
-            .forward(sender.input_sender(), |msg| match msg {
-                RunPageOutput::ConfigChanged(cfg) => AppInput::ConfigChanged(cfg),
-            });
+        let run_page =
+            RunPageModel::builder()
+                .launch(config.clone())
+                .forward(sender.input_sender(), |msg| match msg {
+                    RunPageOutput::ConfigChanged(cfg) => AppInput::ConfigChanged(cfg),
+                });
 
         let model = AppModel {
             config,
