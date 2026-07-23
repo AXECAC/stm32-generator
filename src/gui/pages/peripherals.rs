@@ -3,7 +3,7 @@ use gtk::prelude::*;
 use crate::core::config::Config;
 
 pub struct PeripheralsPageModel {
-    pub config: Config,
+    pub(crate) config: Config,
 }
 
 #[derive(Debug)]

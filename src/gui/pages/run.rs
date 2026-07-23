@@ -1,9 +1,9 @@
-use relm4::{gtk, adw, ComponentParts, ComponentSender, SimpleComponent, RelmWidgetExt};
+use relm4::{gtk, ComponentParts, ComponentSender, SimpleComponent, RelmWidgetExt};
 use gtk::prelude::*;
 use crate::core::config::Config;
 
 pub struct RunPageModel {
-    pub config: Config,
+    pub(crate) config: Config,
 }
 
 #[derive(Debug)]
@@ -33,7 +33,7 @@ impl SimpleComponent for RunPageModel {
                 set_label: "Генерация кода",
                 add_css_class: "title-1",
             },
-            
+
             gtk::Button {
                 set_label: "Сгенерировать",
                 add_css_class: "suggested-action",
