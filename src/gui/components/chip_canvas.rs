@@ -50,7 +50,7 @@ pub struct ChipCanvasModel {
     area_tracker: Rc<RefCell<Option<gtk::DrawingArea>>>,
 }
 
-/// Входящие сообщения для холста (обновление пинов, сброс выбора, клики мыши).
+/// Обновление пинов, сброс выбора, клики мыши.
 #[derive(Debug)]
 pub enum ChipCanvasInput {
     UpdatePins(Vec<(Pin, Option<String>, bool)>),
@@ -58,7 +58,7 @@ pub enum ChipCanvasInput {
     HandleClick(f64, f64, f64, f64),
 }
 
-/// Исходящие сообщения от холста (уведомления о выборе пина).
+/// Уведомления о выборе пина.
 #[derive(Debug)]
 pub enum ChipCanvasOutput {
     PinSelected(String),
@@ -189,7 +189,7 @@ impl ChipCanvasModel {
         let cy = h / 2.0;
         let chip_x = cx - chip_w / 2.0;
         let chip_y = cy - chip_h / 2.0;
-        
+
         (total_size, ChipLayout {
             pins_per_side, pin_length, pin_thickness, chip_x, chip_y, chip_w, chip_h, cx, cy
         })
@@ -291,7 +291,7 @@ impl ChipCanvasModel {
         Ok(())
     }
 
-    /// Рисует текст внутри прямоугольника пина (название пина из даташита).
+    /// Рисует текст внутри прямоугольника пина.
     fn draw_pin_label(
         ctx: &cairo::Context,
         pin: &Pin,
