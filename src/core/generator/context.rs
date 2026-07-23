@@ -111,12 +111,9 @@ impl TemplateContext {
     fn build_spi_ctx(config: &Config) -> Vec<SpiCtx> {
         let mut spis = Vec::new();
         for spi in config.spi() {
-            let (bus_name, pac_bus) = match &spi.bus {
-                ChosenSpiBus::StmF401(b) => {
-                    let s: &'static str = b.into(); // "SPI1", "SPI2"
-                    (s.to_lowercase(), s.to_string())
-                }
-            };
+            let s = spi.bus.variant_name();
+            let bus_name = s.to_lowercase();
+            let pac_bus = s.to_string();
 
             let (polarity, phase) = spi.mode.template_vars();
 
