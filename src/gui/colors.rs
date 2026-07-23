@@ -1,16 +1,28 @@
-pub const BG: (f64, f64, f64) = (0.12, 0.12, 0.12);
-pub const CHIP_BG: (f64, f64, f64) = (0.2, 0.2, 0.2);
-pub const CHIP_BORDER: (f64, f64, f64) = (0.4, 0.4, 0.4);
-pub const CHIP_TEXT: (f64, f64, f64) = (0.9, 0.9, 0.9);
+#[derive(Copy, Clone, Debug)]
+pub struct RgbColor(pub f64, pub f64, pub f64);
 
-pub const PIN_SELECTED: (f64, f64, f64) = (1.0, 0.8, 0.2);
-pub const PIN_POWER: (f64, f64, f64) = (0.7, 0.3, 0.3);
-pub const PIN_CONFIGURED: (f64, f64, f64) = (0.3, 0.7, 0.3);
-pub const PIN_DEFAULT: (f64, f64, f64) = (0.3, 0.5, 0.7);
+impl RgbColor {
+    pub const fn new(r: f64, g: f64, b: f64) -> Self {
+        debug_assert!(r >= 0.0 && r <= 1.0);
+        debug_assert!(g >= 0.0 && g <= 1.0);
+        debug_assert!(b >= 0.0 && b <= 1.0);
+        Self(r, g, b)
+    }
+}
 
-pub const BORDER_SELECTED: (f64, f64, f64) = (1.0, 1.0, 1.0);
-pub const BORDER_DEFAULT: (f64, f64, f64) = (0.1, 0.1, 0.1);
+pub const BG: RgbColor = RgbColor::new(0.12, 0.12, 0.12);
+pub const CHIP_BG: RgbColor = RgbColor::new(0.2, 0.2, 0.2);
+pub const CHIP_BORDER: RgbColor = RgbColor::new(0.4, 0.4, 0.4);
+pub const CHIP_TEXT: RgbColor = RgbColor::new(0.9, 0.9, 0.9);
 
-pub const TEXT_SELECTED: (f64, f64, f64) = (0.1, 0.1, 0.1);
-pub const TEXT_DEFAULT: (f64, f64, f64) = (0.9, 0.9, 0.9);
-pub const TEXT_ALIAS: (f64, f64, f64) = (0.4, 0.8, 0.4);
+pub const PIN_SELECTED: RgbColor = RgbColor::new(1.0, 0.8, 0.2);
+pub const PIN_POWER: RgbColor = RgbColor::new(0.7, 0.3, 0.3);
+pub const PIN_CONFIGURED: RgbColor = RgbColor::new(0.3, 0.7, 0.3);
+pub const PIN_DEFAULT: RgbColor = RgbColor::new(0.3, 0.5, 0.7);
+
+pub const BORDER_SELECTED: RgbColor = RgbColor::new(1.0, 1.0, 1.0);
+pub const BORDER_DEFAULT: RgbColor = RgbColor::new(0.1, 0.1, 0.1);
+
+pub const TEXT_SELECTED: RgbColor = RgbColor::new(0.1, 0.1, 0.1);
+pub const TEXT_DEFAULT: RgbColor = RgbColor::new(0.9, 0.9, 0.9);
+pub const TEXT_ALIAS: RgbColor = RgbColor::new(0.4, 0.8, 0.4);
