@@ -30,3 +30,26 @@ pub struct PinsPageModel {
 
     pub chip_canvas: Controller<ChipCanvasModel>,
 }
+
+/// Входящие события страницы настройки пинов.
+///
+/// Обрабатывает действия пользователя и информацию о [`Config`] с других страниц.
+#[derive(Debug)]
+pub enum PinsPageInput {
+    UpdateConfig(Config),
+    PinSelected(String),
+
+    AliasChanged(String),
+    ApplyPinConfig,
+    PinTypeChanged(usize),
+    PropertyChanged(usize, usize),
+}
+
+/// Исходящие события страницы настройки пинов.
+///
+/// Используется для уведомления родительского окна о том,
+/// что конфигурация микроконтроллера была успешно обновлена.
+#[derive(Debug)]
+pub enum PinsPageOutput {
+    ConfigChanged(Config),
+}
