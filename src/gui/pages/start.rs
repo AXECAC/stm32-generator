@@ -3,28 +3,25 @@ use crate::core::config::Config;
 use crate::core::gpio::TargetMcu;
 use adw::prelude::*;
 use relm4::{ComponentParts, ComponentSender, SimpleComponent, adw, gtk};
+use std::sync::{Arc, RwLock};
 
 pub struct StartPageModel {
-    pub(crate) config: Config,
+    pub(crate) config: Arc<RwLock<Config>>,
     pub(crate) boards: Vec<TargetBoard>,
+    current_board_index: usize,
 }
 
 #[derive(Debug)]
 pub enum StartPageInput {
-    UpdateConfig(Config),
+    UpdateConfig,
     BoardSelected(usize),
-}
-
-#[derive(Debug)]
-pub enum StartPageOutput {
-    ConfigChanged(Config),
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for StartPageModel {
-    type Init = Config;
+    type Init = Arc<RwLock<Config>>;
     type Input = StartPageInput;
-    type Output = StartPageOutput;
+    type Output = ();
 
     view! {
         adw::StatusPage {
@@ -58,7 +55,7 @@ impl SimpleComponent for StartPageModel {
                             }),
 
                             #[watch]
-                            set_selected: model.boards.iter().position(|b| *b == model.config.board).unwrap_or(0) as u32,
+                            set_selected: model.current_board_index as u32,
 
                             connect_selected_notify[sender] => move |row| {
                                 sender.input(StartPageInput::BoardSelected(row.selected() as usize));
@@ -88,29 +85,31 @@ impl SimpleComponent for StartPageModel {
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let boards = vec![TargetBoard::BlackPill(TargetMcu::StmF401)];
+        let current_board = init.read().unwrap().board;
+        let current_board_index = boards.iter().position(|b| *b == current_board).unwrap_or(0);
 
         let model = StartPageModel {
             config: init,
             boards,
+            current_board_index,
         };
         let widgets = view_output!();
         ComponentParts { model, widgets }
     }
 
-    fn update(&mut self, message: Self::Input, sender: ComponentSender<Self>) {
+    fn update(&mut self, message: Self::Input, _sender: ComponentSender<Self>) {
         match message {
-            StartPageInput::UpdateConfig(cfg) => {
-                self.config = cfg;
+            StartPageInput::UpdateConfig => {
+                let current_board = self.config.read().unwrap().board;
+                self.current_board_index = self.boards.iter().position(|b| *b == current_board).unwrap_or(0);
             }
             StartPageInput::BoardSelected(idx) => {
-                if let Some(board) = self.boards.get(idx)
-                    && *board != self.config.board
-                {
-                    // Сбрасываем конфиг при смене платы
-                    let new_config = Config::new(*board);
-                    self.config = new_config.clone();
-                    if let Err(e) = sender.output(StartPageOutput::ConfigChanged(new_config)) {
-                        log::error!("Не удалось отправить ConfigChanged из StartPageModel: {:?}", e);
+                if let Some(board) = self.boards.get(idx) {
+                    let mut config = self.config.write().unwrap();
+                    if *board != config.board {
+                        // Сбрасываем конфиг при смене платы
+                        *config = Config::new(*board);
+                        self.current_board_index = idx;
                     }
                 }
             }

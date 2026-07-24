@@ -9,6 +9,7 @@ use relm4::{
     Component, ComponentController, ComponentParts, ComponentSender, Controller, RelmWidgetExt,
     SimpleComponent, adw, gtk,
 };
+use std::sync::{Arc, RwLock};
 
 /// Модель страницы настройки пинов (GPIO).
 ///
@@ -16,7 +17,7 @@ use relm4::{
 /// текущего выбранного на холсте пина, его базового режима работы, текстового алиаса,
 /// а также управляет динамически формируемым списком дополнительных свойств.
 pub struct PinsPageModel {
-    pub config: Config,
+    pub config: Arc<RwLock<Config>>,
     board_pins: Vec<Pin>,
     selected_pin: Option<Pin>,
     current_alias: String,
@@ -39,7 +40,7 @@ pub struct PinsPageModel {
 /// Обрабатывает действия пользователя и информацию о [`Config`] с других страниц.
 #[derive(Debug)]
 pub enum PinsPageInput {
-    UpdateConfig(Config),
+    UpdateConfig,
     PinSelected(String),
 
     AliasChanged(String),
@@ -48,20 +49,13 @@ pub enum PinsPageInput {
     PropertyChanged(usize, usize),
 }
 
-/// Исходящие события страницы настройки пинов.
-///
-/// Используется для уведомления родительского окна о том,
-/// что конфигурация микроконтроллера была успешно обновлена.
-#[derive(Debug)]
-pub enum PinsPageOutput {
-    ConfigChanged(Config),
-}
+
 
 #[relm4::component(pub)]
 impl SimpleComponent for PinsPageModel {
-    type Init = Config;
+    type Init = Arc<RwLock<Config>>;
     type Input = PinsPageInput;
-    type Output = PinsPageOutput;
+    type Output = ();
 
     view! {
         gtk::Paned {
@@ -178,10 +172,10 @@ impl SimpleComponent for PinsPageModel {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let board_pins = init.board.build_pins();
-        let pins_data = Self::build_pins_with_aliases(&board_pins, &init);
+        let board_pins = init.read().unwrap().board.build_pins();
+        let pins_data = Self::build_pins_with_aliases(&board_pins, &init.read().unwrap());
         let chip_canvas = ChipCanvasModel::builder()
-            .launch((init.board.chip_label().to_string(), pins_data))
+            .launch((init.read().unwrap().board.chip_label().to_string(), pins_data))
             .forward(sender.input_sender(), |output| match output {
                 ChipCanvasOutput::PinSelected(key) => PinsPageInput::PinSelected(key),
             });
@@ -215,13 +209,20 @@ impl SimpleComponent for PinsPageModel {
 
     fn update(&mut self, message: Self::Input, sender: ComponentSender<Self>) {
         match message {
-            PinsPageInput::UpdateConfig(cfg) => {
-                self.config = cfg;
+            PinsPageInput::UpdateConfig => {
                 self.error_message = None;
-                self.board_pins = self.config.board.build_pins();
-                let pins_data = Self::build_pins_with_aliases(&self.board_pins, &self.config);
-                if let Err(e) = self.chip_canvas.sender().send(ChipCanvasInput::UpdatePins(pins_data)) {
-                    log::error!("Не удалось отправить UpdatePins в компонент ChipCanvas: {:?}", e);
+                let config = self.config.read().unwrap();
+                self.board_pins = config.board.build_pins();
+                let pins_data = Self::build_pins_with_aliases(&self.board_pins, &config);
+                if let Err(e) = self
+                    .chip_canvas
+                    .sender()
+                    .send(ChipCanvasInput::UpdatePins(pins_data))
+                {
+                    log::error!(
+                        "Не удалось отправить UpdatePins в компонент ChipCanvas: {:?}",
+                        e
+                    );
                 }
             }
             PinsPageInput::PinSelected(key) => {
@@ -241,6 +242,8 @@ impl SimpleComponent for PinsPageModel {
 
                         if let Some(pin_cfg) = self
                             .config
+                            .read()
+                            .unwrap()
                             .gpio()
                             .iter()
                             .find(|p| p.pin.pin() == chosen_pin)
@@ -334,39 +337,59 @@ impl PinsPageModel {
     /// Пересобирает конфигурацию для текущего выбранного пина на основе
     /// состояния UI, обновляет глобальную конфигурацию и уведомляет
     /// родительский компонент.
-    fn rebuild_and_emit_config(&mut self, sender: &ComponentSender<Self>) {
+    fn rebuild_and_emit_config(&mut self, _sender: &ComponentSender<Self>) {
         if let Some(pin) = &self.selected_pin
             && let PinType::Gpio(chosen_pin) = pin.pin_type
         {
             // Сначала удаляем старый конфиг для этого пина
-            self.config.remove_gpio_pin(&chosen_pin);
+            {
+                let mut config = self.config.write().unwrap();
+                config.remove_gpio_pin(&chosen_pin);
 
-            // Если выбран какой-то режим (не 0 "Не настроен"), собираем и добавляем новый конфиг
-            if let Some(mode) = self.current_mode {
-                let new_pin_config = PinConfig {
-                    pin: mode,
-                    label: if self.current_alias.is_empty() {
-                        None
-                    } else {
-                        Some(self.current_alias.clone())
-                    },
-                };
-                if let Err(err) = self.config.add_gpio_pin(new_pin_config) {
-                    self.error_message = Some(err.to_string());
-                    return;
+                // Если выбран какой-то режим (не 0 "Не настроен"), собираем и добавляем новый конфиг
+                if let Some(mode) = self.current_mode {
+                    let new_pin_config = PinConfig {
+                        pin: mode,
+                        label: if self.current_alias.is_empty() {
+                            None
+                        } else {
+                            Some(self.current_alias.clone())
+                        },
+                    };
+                    if let Err(err) = config.add_gpio_pin(new_pin_config) {
+                        self.error_message = Some(err.to_string());
+                        return;
+                    }
                 }
             }
 
             self.error_message = None;
 
-            if let Err(e) = sender.output(PinsPageOutput::ConfigChanged(self.config.clone())) {
-                log::error!("Не удалось отправить ConfigChanged из PinsPageModel: {:?}", e);
+            // Локально обновляем холст чипа (не ждём, пока таб переключится обратно)
+            {
+                let config = self.config.read().unwrap();
+                let pins_data = Self::build_pins_with_aliases(&self.board_pins, &config);
+                if let Err(e) = self.chip_canvas.sender().send(ChipCanvasInput::UpdatePins(pins_data)) {
+                    log::error!("Не удалось отправить UpdatePins в ChipCanvas: {:?}", e);
+                }
             }
 
             // Очищаем выбор, чтобы панель скрылась, а пин вернул свой обычный цвет (зеленый если настроен)
             self.selected_pin = None;
-            if let Err(e) = self.chip_canvas.sender().send(ChipCanvasInput::ClearSelection) {
-                log::error!("Не удалось отправить ClearSelection в компонент ChipCanvas: {:?}", e);
+            self.current_mode = None;
+            self.current_alias.clear();
+            self.alias_buffer.set_text("");
+            self.update_dynamic_properties();
+
+            if let Err(e) = self
+                .chip_canvas
+                .sender()
+                .send(ChipCanvasInput::ClearSelection)
+            {
+                log::error!(
+                    "Не удалось отправить ClearSelection в компонент ChipCanvas: {:?}",
+                    e
+                );
             }
         }
     }

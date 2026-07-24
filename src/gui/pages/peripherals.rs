@@ -1,26 +1,22 @@
 use relm4::{gtk, ComponentParts, ComponentSender, SimpleComponent, RelmWidgetExt};
 use gtk::prelude::*;
 use crate::core::config::Config;
+use std::sync::{Arc, RwLock};
 
 pub struct PeripheralsPageModel {
-    pub(crate) config: Config,
+    pub(crate) config: Arc<RwLock<Config>>,
 }
 
 #[derive(Debug)]
 pub enum PeripheralsPageInput {
-    UpdateConfig(Config),
-}
-
-#[derive(Debug)]
-pub enum PeripheralsPageOutput {
-    ConfigChanged(Config),
+    UpdateConfig,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for PeripheralsPageModel {
-    type Init = Config;
+    type Init = Arc<RwLock<Config>>;
     type Input = PeripheralsPageInput;
-    type Output = PeripheralsPageOutput;
+    type Output = ();
 
     view! {
         gtk::Box {
@@ -47,7 +43,7 @@ impl SimpleComponent for PeripheralsPageModel {
 
     fn update(&mut self, message: Self::Input, _sender: ComponentSender<Self>) {
         match message {
-            PeripheralsPageInput::UpdateConfig(cfg) => self.config = cfg,
+            PeripheralsPageInput::UpdateConfig => {},
         }
     }
 }

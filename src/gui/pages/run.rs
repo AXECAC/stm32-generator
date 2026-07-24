@@ -1,26 +1,22 @@
 use relm4::{gtk, ComponentParts, ComponentSender, SimpleComponent, RelmWidgetExt};
 use gtk::prelude::*;
 use crate::core::config::Config;
+use std::sync::{Arc, RwLock};
 
 pub struct RunPageModel {
-    pub(crate) config: Config,
+    pub(crate) config: Arc<RwLock<Config>>,
 }
 
 #[derive(Debug)]
 pub enum RunPageInput {
-    UpdateConfig(Config),
-}
-
-#[derive(Debug)]
-pub enum RunPageOutput {
-    ConfigChanged(Config),
+    UpdateConfig,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for RunPageModel {
-    type Init = Config;
+    type Init = Arc<RwLock<Config>>;
     type Input = RunPageInput;
-    type Output = RunPageOutput;
+    type Output = ();
 
     view! {
         gtk::Box {
@@ -51,7 +47,7 @@ impl SimpleComponent for RunPageModel {
 
     fn update(&mut self, message: Self::Input, _sender: ComponentSender<Self>) {
         match message {
-            RunPageInput::UpdateConfig(cfg) => self.config = cfg,
+            RunPageInput::UpdateConfig => {},
         }
     }
 }

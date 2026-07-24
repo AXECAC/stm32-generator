@@ -3,21 +3,21 @@ use relm4::{
     Component, ComponentController, ComponentParts, ComponentSender, Controller, SimpleComponent,
     adw, gtk,
 };
+use std::sync::{Arc, RwLock};
 
 use crate::core::board::TargetBoard;
 use crate::core::config::Config;
 use crate::core::gpio::TargetMcu;
 
-use crate::gui::pages::peripherals::{
-    PeripheralsPageInput, PeripheralsPageModel, PeripheralsPageOutput,
-};
-use crate::gui::pages::pins::{PinsPageInput, PinsPageModel, PinsPageOutput};
-use crate::gui::pages::run::{RunPageInput, RunPageModel, RunPageOutput};
-use crate::gui::pages::spi::{SpiPageInput, SpiPageModel, SpiPageOutput};
-use crate::gui::pages::start::{StartPageInput, StartPageModel, StartPageOutput};
+use crate::gui::pages::peripherals::{PeripheralsPageInput, PeripheralsPageModel};
+use crate::gui::pages::pins::{PinsPageInput, PinsPageModel};
+use crate::gui::pages::run::{RunPageInput, RunPageModel};
+use crate::gui::pages::spi::{SpiPageInput, SpiPageModel};
+use crate::gui::pages::start::{StartPageInput, StartPageModel};
 
 pub struct AppModel {
-    config: Config,
+    #[allow(dead_code)]
+    config: Arc<RwLock<Config>>,
     start_page: Controller<StartPageModel>,
     pins_page: Controller<PinsPageModel>,
     spi_page: Controller<SpiPageModel>,
@@ -27,7 +27,7 @@ pub struct AppModel {
 
 #[derive(Debug)]
 pub enum AppInput {
-    ConfigChanged(Config),
+    TabSwitched(String),
 }
 
 #[relm4::component(pub)]
@@ -62,6 +62,11 @@ impl SimpleComponent for AppModel {
                     append = &adw::ViewStack {
                         set_hexpand: true,
                         set_vexpand: true,
+                        connect_visible_child_name_notify[sender] => move |stack| {
+                            if let Some(name) = stack.visible_child_name() {
+                                sender.input(AppInput::TabSwitched(name.to_string()));
+                            }
+                        },
 
                         add_titled[Some("start"), "Начало"] = &gtk::Box {
                             #[local_ref]
@@ -98,41 +103,17 @@ impl SimpleComponent for AppModel {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let config = Config::new(TargetBoard::BlackPill(TargetMcu::StmF401));
+        let config = Arc::new(RwLock::new(Config::new(TargetBoard::BlackPill(
+            TargetMcu::StmF401,
+        ))));
 
-        let start_page = StartPageModel::builder().launch(config.clone()).forward(
-            sender.input_sender(),
-            |msg| match msg {
-                StartPageOutput::ConfigChanged(cfg) => AppInput::ConfigChanged(cfg),
-            },
-        );
-
-        let pins_page =
-            PinsPageModel::builder()
-                .launch(config.clone())
-                .forward(sender.input_sender(), |msg| match msg {
-                    PinsPageOutput::ConfigChanged(cfg) => AppInput::ConfigChanged(cfg),
-                });
-
-        let spi_page =
-            SpiPageModel::builder()
-                .launch(config.clone())
-                .forward(sender.input_sender(), |msg| match msg {
-                    SpiPageOutput::ConfigChanged(cfg) => AppInput::ConfigChanged(cfg),
-                });
-
+        let start_page = StartPageModel::builder().launch(config.clone()).detach();
+        let pins_page = PinsPageModel::builder().launch(config.clone()).detach();
+        let spi_page = SpiPageModel::builder().launch(config.clone()).detach();
         let peripherals_page = PeripheralsPageModel::builder()
             .launch(config.clone())
-            .forward(sender.input_sender(), |msg| match msg {
-                PeripheralsPageOutput::ConfigChanged(cfg) => AppInput::ConfigChanged(cfg),
-            });
-
-        let run_page =
-            RunPageModel::builder()
-                .launch(config.clone())
-                .forward(sender.input_sender(), |msg| match msg {
-                    RunPageOutput::ConfigChanged(cfg) => AppInput::ConfigChanged(cfg),
-                });
+            .detach();
+        let run_page = RunPageModel::builder().launch(config.clone()).detach();
 
         let model = AppModel {
             config,
@@ -156,40 +137,40 @@ impl SimpleComponent for AppModel {
 
     fn update(&mut self, message: Self::Input, _sender: ComponentSender<Self>) {
         match message {
-            AppInput::ConfigChanged(cfg) => {
-                self.config = cfg.clone();
+            AppInput::TabSwitched(name) => {
                 let failed_message = "Не удалось отправить UpdateConfig в";
-
-                if let Err(e) = self
-                    .start_page
-                    .sender()
-                    .send(StartPageInput::UpdateConfig(cfg.clone()))
-                {
-                    log::error!("{} StartPageModel: {:?}", failed_message, e);
-                }
-                if let Err(e) = self
-                    .pins_page
-                    .sender()
-                    .send(PinsPageInput::UpdateConfig(cfg.clone()))
-                {
-                    log::error!("{} PinsPageModel: {:?}", failed_message, e);
-                }
-                if let Err(e) = self
-                    .spi_page
-                    .sender()
-                    .send(SpiPageInput::UpdateConfig(cfg.clone()))
-                {
-                    log::error!("{} SpiPageModel: {:?}", failed_message, e);
-                }
-                if let Err(e) = self
-                    .peripherals_page
-                    .sender()
-                    .send(PeripheralsPageInput::UpdateConfig(cfg.clone()))
-                {
-                    log::error!("{} PeripheralsPageModel: {:?}", failed_message, e);
-                }
-                if let Err(e) = self.run_page.sender().send(RunPageInput::UpdateConfig(cfg)) {
-                    log::error!("{} RunPageModel: {:?}", failed_message, e);
+                match name.as_str() {
+                    "start" => {
+                        if let Err(e) = self.start_page.sender().send(StartPageInput::UpdateConfig)
+                        {
+                            log::error!("{} StartPageModel: {:?}", failed_message, e);
+                        }
+                    }
+                    "pins" => {
+                        if let Err(e) = self.pins_page.sender().send(PinsPageInput::UpdateConfig) {
+                            log::error!("{} PinsPageModel: {:?}", failed_message, e);
+                        }
+                    }
+                    "spi" => {
+                        if let Err(e) = self.spi_page.sender().send(SpiPageInput::UpdateConfig) {
+                            log::error!("{} SpiPageModel: {:?}", failed_message, e);
+                        }
+                    }
+                    "peripherals" => {
+                        if let Err(e) = self
+                            .peripherals_page
+                            .sender()
+                            .send(PeripheralsPageInput::UpdateConfig)
+                        {
+                            log::error!("{} PeripheralsPageModel: {:?}", failed_message, e);
+                        }
+                    }
+                    "run" => {
+                        if let Err(e) = self.run_page.sender().send(RunPageInput::UpdateConfig) {
+                            log::error!("{} RunPageModel: {:?}", failed_message, e);
+                        }
+                    }
+                    _ => {}
                 }
             }
         }

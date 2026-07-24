@@ -1,26 +1,22 @@
 use relm4::{gtk, ComponentParts, ComponentSender, SimpleComponent, RelmWidgetExt};
 use gtk::prelude::*;
 use crate::core::config::Config;
+use std::sync::{Arc, RwLock};
 
 pub struct SpiPageModel {
-    pub(crate) config: Config,
+    pub(crate) config: Arc<RwLock<Config>>,
 }
 
 #[derive(Debug)]
 pub enum SpiPageInput {
-    UpdateConfig(Config),
-}
-
-#[derive(Debug)]
-pub enum SpiPageOutput {
-    ConfigChanged(Config),
+    UpdateConfig,
 }
 
 #[relm4::component(pub)]
 impl SimpleComponent for SpiPageModel {
-    type Init = Config;
+    type Init = Arc<RwLock<Config>>;
     type Input = SpiPageInput;
-    type Output = SpiPageOutput;
+    type Output = ();
 
     view! {
         gtk::Box {
@@ -47,7 +43,7 @@ impl SimpleComponent for SpiPageModel {
 
     fn update(&mut self, message: Self::Input, _sender: ComponentSender<Self>) {
         match message {
-            SpiPageInput::UpdateConfig(cfg) => self.config = cfg,
+            SpiPageInput::UpdateConfig => {},
         }
     }
 }
