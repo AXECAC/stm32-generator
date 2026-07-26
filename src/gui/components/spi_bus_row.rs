@@ -17,3 +17,10 @@ pub struct SpiBusRowModel {
     /// Краткое описание параметров SPI-шины.
     subtitle: String,
 }
+
+/// Исходящие сообщения строки SPI.
+#[derive(Debug)]
+pub enum SpiBusRowOutput {
+    /// Пользователь нажал кнопку удаления для указанной SPI-шины.
+    Remove(ChosenSpiBus),
+}
