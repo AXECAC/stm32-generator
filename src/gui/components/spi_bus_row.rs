@@ -25,6 +25,55 @@ pub enum SpiBusRowOutput {
     Remove(ChosenSpiBus),
 }
 
+#[relm4::factory(pub)]
+impl FactoryComponent for SpiBusRowModel {
+    /// Исходная конфигурация SPI-шины для создания строки.
+    type Init = SpiConfig;
+    /// Входящие сообщения factory-строки.
+    type Input = ();
+    /// Исходящие сообщения factory-строки.
+    type Output = SpiBusRowOutput;
+    /// Асинхронные команды factory-строкой не используются.
+    type CommandOutput = ();
+    /// Родительский GTK-контейнер, в который добавляются строки.
+    type ParentWidget = adw::PreferencesGroup;
+
+    view! {
+        adw::ActionRow {
+            set_title: self.title.as_str(),
+            set_subtitle: self.subtitle.as_str(),
+
+            add_suffix = &gtk::Button {
+                set_label: "Удалить",
+                add_css_class: "destructive-action",
+                set_valign: gtk::Align::Center,
+
+                connect_clicked[sender, bus = self.bus] => move |_| {
+                    if let Err(e) = sender.output(SpiBusRowOutput::Remove(bus)) {
+                        log::error!("Не удалось отправить Remove из SpiBusRowModel: {:?}", e);
+                    }
+                }
+            }
+        }
+    }
+
+    /// Создаёт модель строки из доменной конфигурации SPI.
+    fn init_model(
+        init: Self::Init,
+        _idx: &relm4::factory::DynamicIndex,
+        _sender: relm4::factory::FactorySender<Self>,
+    ) -> Self {
+        let title = format!("Шина {}", init.bus.variant_name());
+        let subtitle = Self::subtitle(&init);
+
+        Self {
+            bus: init.bus,
+            title,
+            subtitle,
+        }
+    }
+}
+
 impl SpiBusRowModel {
     /// Формирует человекочитаемое описание параметров SPI-шины.
     fn subtitle(spi: &SpiConfig) -> String {
