@@ -59,8 +59,6 @@ pub enum PinsPageInput {
     PropertyChanged(usize, usize),
 }
 
-
-
 #[relm4::component(pub)]
 impl SimpleComponent for PinsPageModel {
     type Init = Arc<RwLock<Config>>;
@@ -199,13 +197,26 @@ impl SimpleComponent for PinsPageModel {
                 PropertyRowOutput::SelectionChanged(p, v) => PinsPageInput::PropertyChanged(p, v),
             });
 
+        let pin_type_model = gtk::StringList::new(&[]);
+        if let Some(first_gpio) = board_pins.iter().find_map(|p| {
+            if let PinType::Gpio(cp) = p.pin_type {
+                Some(cp)
+            } else {
+                None
+            }
+        }) {
+            let mut v = vec!["Not Configured"];
+            v.extend(first_gpio.default_mode().mode_variants());
+            pin_type_model.splice(0, 0, v.as_slice());
+        }
+
         let mut model = PinsPageModel {
             config: init,
             board_pins,
             selected_pin: None,
             current_alias: String::new(),
             current_mode: None,
-            pin_type_model: gtk::StringList::new(&[]),
+            pin_type_model,
             alias_buffer: gtk::EntryBuffer::new(None::<&str>),
             error_message: None,
             dynamic_properties,
