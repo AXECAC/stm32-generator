@@ -24,3 +24,27 @@ pub enum SpiBusRowOutput {
     /// Пользователь нажал кнопку удаления для указанной SPI-шины.
     Remove(ChosenSpiBus),
 }
+
+impl SpiBusRowModel {
+    /// Формирует человекочитаемое описание параметров SPI-шины.
+    fn subtitle(spi: &SpiConfig) -> String {
+        let mode: &'static str = spi.mode.into();
+        let miso = spi
+            .miso
+            .map(|p| p.variant_name().to_string())
+            .unwrap_or_else(|| "не используется".to_string());
+        let mosi = spi
+            .mosi
+            .map(|p| p.variant_name().to_string())
+            .unwrap_or_else(|| "не используется".to_string());
+
+        format!(
+            "{} МГц, {}; SCK {}, MISO {}, MOSI {}",
+            spi.frequency_mhz,
+            mode,
+            spi.sck.variant_name(),
+            miso,
+            mosi
+        )
+    }
+}
