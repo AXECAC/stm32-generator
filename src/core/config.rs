@@ -115,6 +115,14 @@ impl Config {
             })
             .collect()
     }
+
+    /// Возвращает имя SPI-шины, которой занят пин.
+    pub(crate) fn spi_pin_bus_name(&self, pin: ChosenPin) -> Option<String> {
+        self.spi()
+            .iter()
+            .find(|spi| spi.uses_pins().contains(&pin))
+            .map(|spi| spi.bus.variant_name().to_string())
+    }
     /// Проверка повторного использования [`ChosenPin`]
     /// Возвращает ошибку, если один из пинов уже используется
     fn check_conflicts_pins(&self, new_pins: &[ChosenPin]) -> ConfigResult<()> {
