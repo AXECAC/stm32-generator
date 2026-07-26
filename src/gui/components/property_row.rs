@@ -14,14 +14,6 @@ pub struct PropertyRowModel {
     pub selected: usize,
 }
 
-/// Входящие сообщения для строки дополнительных настроек.
-///
-/// Перечисление намеренно пустое, так как данный фабричный компонент является однонаправленным:
-/// он лишь регистрирует выбор пользователя и отправляет результат родительскому компоненту,
-/// не принимая никаких команд на обновление извне.
-#[derive(Debug)]
-pub enum PropertyRowInput {}
-
 /// Исходящие сообщения от строки дополнительных настроек к родительскому компоненту.
 #[derive(Debug)]
 pub enum PropertyRowOutput {
@@ -33,7 +25,7 @@ pub enum PropertyRowOutput {
 #[relm4::factory(pub)]
 impl FactoryComponent for PropertyRowModel {
     type Init = (usize, String, Vec<String>, usize);
-    type Input = PropertyRowInput;
+    type Input = ();
     type Output = PropertyRowOutput;
     type CommandOutput = ();
     type ParentWidget = adw::PreferencesGroup;
