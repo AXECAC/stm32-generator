@@ -123,6 +123,12 @@ impl Config {
             .find(|spi| spi.uses_pins().contains(&pin))
             .map(|spi| spi.bus.variant_name().to_string())
     }
+
+    /// Возвращает пины, занятые SPI-шинами.
+    pub(crate) fn spi_pins(&self) -> Vec<ChosenPin> {
+        self.spi().iter().flat_map(|spi| spi.uses_pins()).collect()
+    }
+
     /// Проверка повторного использования [`ChosenPin`]
     /// Возвращает ошибку, если один из пинов уже используется
     fn check_conflicts_pins(&self, new_pins: &[ChosenPin]) -> ConfigResult<()> {
