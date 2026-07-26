@@ -1,6 +1,6 @@
-use relm4::{gtk, ComponentParts, ComponentSender, SimpleComponent, RelmWidgetExt};
-use gtk::prelude::*;
 use crate::core::config::Config;
+use gtk::prelude::*;
+use relm4::{ComponentParts, ComponentSender, RelmWidgetExt, SimpleComponent, gtk};
 use std::sync::{Arc, RwLock};
 
 pub struct RunPageModel {
@@ -39,7 +39,11 @@ impl SimpleComponent for RunPageModel {
         }
     }
 
-    fn init(init: Self::Init, root: Self::Root, _sender: ComponentSender<Self>) -> ComponentParts<Self> {
+    fn init(
+        init: Self::Init,
+        root: Self::Root,
+        _sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
         let model = RunPageModel { config: init };
         let widgets = view_output!();
         ComponentParts { model, widgets }
@@ -47,7 +51,7 @@ impl SimpleComponent for RunPageModel {
 
     fn update(&mut self, message: Self::Input, _sender: ComponentSender<Self>) {
         match message {
-            RunPageInput::UpdateConfig => {},
+            RunPageInput::UpdateConfig => {}
         }
     }
 }

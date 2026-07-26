@@ -1,11 +1,11 @@
 use crate::core::gpio::ChosenPin;
 
+pub mod board;
 pub(crate) mod config;
 pub mod errors;
 pub mod generator;
 pub mod gpio;
 pub mod peripherals;
-pub mod board;
 pub(crate) mod worker;
 
 /// Объект может выдать все, используемые им пины [`ChosenPin`]

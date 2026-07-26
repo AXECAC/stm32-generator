@@ -101,7 +101,11 @@ impl SimpleComponent for StartPageModel {
         match message {
             StartPageInput::UpdateConfig => {
                 let current_board = self.config.read().unwrap().board;
-                self.current_board_index = self.boards.iter().position(|b| *b == current_board).unwrap_or(0);
+                self.current_board_index = self
+                    .boards
+                    .iter()
+                    .position(|b| *b == current_board)
+                    .unwrap_or(0);
             }
             StartPageInput::BoardSelected(idx) => {
                 if let Some(board) = self.boards.get(idx) {

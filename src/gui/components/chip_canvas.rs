@@ -114,7 +114,8 @@ impl SimpleComponent for ChipCanvasModel {
         widgets
             .drawing_area
             .set_draw_func(move |_area, ctx, width, height| {
-                if let Err(e) = Self::draw_canvas(&state.borrow(), ctx, width as f64, height as f64) {
+                if let Err(e) = Self::draw_canvas(&state.borrow(), ctx, width as f64, height as f64)
+                {
                     log::error!("Ошибка отрисовки холста: {}", e);
                 }
             });
@@ -161,7 +162,10 @@ impl SimpleComponent for ChipCanvasModel {
                 if let Some(key) = closest_pin {
                     self.state.borrow_mut().selected_pin_key = Some(key.clone());
                     if let Err(e) = sender.output(ChipCanvasOutput::PinSelected(key)) {
-                        log::error!("Не удалось отправить PinSelected из ChipCanvasModel: {:?}", e);
+                        log::error!(
+                            "Не удалось отправить PinSelected из ChipCanvasModel: {:?}",
+                            e
+                        );
                     }
                     redraw = true;
                 }
