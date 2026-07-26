@@ -146,6 +146,21 @@ impl Config {
         pins.extend(self.peripheral_pins());
         pins
     }
+
+    /// Возвращает ключи пинов, которые должны быть некликабельными на холсте GPIO.
+    pub(crate) fn not_gpio_configured_pins_keys(&self, board_pins: &[Pin]) -> Vec<String> {
+        let external_pins = self.not_gpio_configured_pins();
+        board_pins
+            .iter()
+            .filter_map(|pin| match pin.pin_type {
+                PinType::Gpio(chosen_pin) if external_pins.contains(&chosen_pin) => {
+                    Some(pin.key.clone())
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
     /// Проверка повторного использования [`ChosenPin`]
     /// Возвращает ошибку, если один из пинов уже используется
     fn check_conflicts_pins(&self, new_pins: &[ChosenPin]) -> ConfigResult<()> {
