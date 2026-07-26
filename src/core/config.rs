@@ -226,10 +226,23 @@ impl UsesPins for SpiConfig {
 }
 
 /// Конфигурация шины SPI
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Default,
+    strum::FromRepr,
+    strum::VariantNames,
+    strum::IntoStaticStr,
+    Serialize,
+)]
+#[repr(u8)]
 pub enum SpiMode {
     /// Polarity: IdleLow (CPOL=0)
     /// Phase: CaptureOnFirstTransition (CPHA=0)
+    #[default]
     Mode0,
     /// Polarity: IdleLow (CPOL=0)
     /// Phase: CaptureOnSecondTransition (CPHA=1)
