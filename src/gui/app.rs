@@ -16,8 +16,11 @@ use crate::gui::pages::spi::{SpiPageInput, SpiPageModel};
 use crate::gui::pages::start::{StartPageInput, StartPageModel};
 
 pub struct AppModel {
-    #[allow(dead_code)]
-    config: Arc<RwLock<Config>>,
+    /// Удерживает Arc живым на всё время жизни приложения.
+    /// Без этого поля счётчик ссылок мог бы упасть до нуля после init().
+    _config: Arc<RwLock<Config>>,
+
+    // Контроллеры для страниц
     start_page: Controller<StartPageModel>,
     pins_page: Controller<PinsPageModel>,
     spi_page: Controller<SpiPageModel>,
@@ -116,7 +119,7 @@ impl SimpleComponent for AppModel {
         let run_page = RunPageModel::builder().launch(config.clone()).detach();
 
         let model = AppModel {
-            config,
+            _config: config,
             start_page,
             pins_page,
             spi_page,
