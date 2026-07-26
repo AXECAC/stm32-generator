@@ -233,78 +233,15 @@ impl SimpleComponent for PinsPageModel {
 
     fn update(&mut self, message: Self::Input, sender: ComponentSender<Self>) {
         match message {
-            PinsPageInput::UpdateConfig => {
-                self.error_message = None;
-                let config = self.config.read().unwrap();
-                self.board_pins = config.board.build_pins();
-                let pins_data = Self::build_pins_with_aliases(&self.board_pins, &config);
-                if let Err(e) = self
-                    .chip_canvas
-                    .sender()
-                    .send(ChipCanvasInput::UpdatePins(pins_data))
-                {
-                    log::error!(
-                        "Не удалось отправить UpdatePins в компонент ChipCanvas: {:?}",
-                        e
-                    );
-                }
-            }
-            PinsPageInput::PinSelected(key) => {
-                self.error_message = None;
-                if let Some(pin) = self.board_pins.iter().find(|p| p.key == key) {
-                    self.selected_pin = Some(pin.clone());
-
-                    self.current_mode = None;
-                    self.current_alias.clear();
-                    self.alias_buffer.set_text("");
-
-                    if let PinType::Gpio(chosen_pin) = pin.pin_type {
-                        let mut v = vec!["Not Configured"];
-                        v.extend(chosen_pin.default_mode().mode_variants());
-                        self.pin_type_model
-                            .splice(0, self.pin_type_model.n_items(), v.as_slice());
-
-                        if let Some(pin_cfg) = self
-                            .config
-                            .read()
-                            .unwrap()
-                            .gpio()
-                            .iter()
-                            .find(|p| p.pin.pin() == chosen_pin)
-                        {
-                            if let Some(label) = &pin_cfg.label {
-                                self.current_alias = label.clone();
-                                self.alias_buffer.set_text(label);
-                            }
-
-                            self.current_mode = Some(pin_cfg.pin);
-                        }
-                    }
-                    self.update_dynamic_properties();
-                }
-            }
+            PinsPageInput::UpdateConfig => self.handle_update_config(),
+            PinsPageInput::PinSelected(key) => self.handle_pin_selected(&key),
             PinsPageInput::AliasChanged(alias) => {
                 self.current_alias = alias;
             }
             PinsPageInput::ApplyPinConfig => {
                 self.rebuild_and_emit_config(&sender);
             }
-            PinsPageInput::PinTypeChanged(idx) => {
-                if idx == 0 {
-                    self.current_mode = None;
-                } else {
-                    if let Some(pin) = &self.selected_pin
-                        && let PinType::Gpio(chosen_pin) = pin.pin_type
-                    {
-                        let mut mode = self
-                            .current_mode
-                            .unwrap_or_else(|| chosen_pin.default_mode());
-                        mode.set_mode_index(idx - 1);
-                        self.current_mode = Some(mode);
-                    }
-                }
-                self.update_dynamic_properties();
-            }
+            PinsPageInput::PinTypeChanged(idx) => self.handle_pin_type_changed(idx),
             PinsPageInput::PropertyChanged(prop_idx, variant_idx) => {
                 if let Some(ref mut mode) = self.current_mode {
                     mode.set_property(prop_idx, variant_idx);
@@ -315,6 +252,106 @@ impl SimpleComponent for PinsPageModel {
 }
 
 impl PinsPageModel {
+    fn handle_update_config(&mut self) {
+        self.error_message = None;
+        let config = self.config.read().unwrap();
+        self.board_pins = config.board.build_pins();
+
+        if let Some(first_gpio) = self.board_pins.iter().find_map(|p| {
+            if let PinType::Gpio(cp) = p.pin_type {
+                Some(cp)
+            } else {
+                None
+            }
+        }) {
+            let mut v = vec!["Not Configured"];
+            v.extend(first_gpio.default_mode().mode_variants());
+
+            let current_len = self.pin_type_model.n_items();
+            let mut changed = current_len as usize != v.len();
+            if !changed {
+                for i in 0..current_len {
+                    if let Some(item) = self.pin_type_model.item(i)
+                        && let Ok(string_obj) = item.downcast::<gtk::StringObject>()
+                        && string_obj.string() != v[i as usize]
+                    {
+                        changed = true;
+                        break;
+                    }
+                }
+            }
+            if changed {
+                self.pin_type_model.splice(0, current_len, v.as_slice());
+            }
+        }
+
+        let pins_data = Self::build_pins_with_aliases(&self.board_pins, &config);
+        if let Err(e) = self
+            .chip_canvas
+            .sender()
+            .send(ChipCanvasInput::UpdatePins(pins_data))
+        {
+            log::error!(
+                "Не удалось отправить UpdatePins в компонент ChipCanvas: {:?}",
+                e
+            );
+        }
+    }
+
+    fn handle_pin_selected(&mut self, key: &str) {
+        self.error_message = None;
+        if let Some(pin) = self.board_pins.iter().find(|p| p.key == key) {
+            self.selected_pin = Some(pin.clone());
+
+            self.current_mode = None;
+            self.current_alias.clear();
+            self.alias_buffer.set_text("");
+
+            if let PinType::Gpio(chosen_pin) = pin.pin_type
+                && let Some(pin_cfg) = self
+                    .config
+                    .read()
+                    .unwrap()
+                    .gpio()
+                    .iter()
+                    .find(|p| p.pin.pin() == chosen_pin)
+            {
+                if let Some(label) = &pin_cfg.label {
+                    self.current_alias = label.clone();
+                    self.alias_buffer.set_text(label);
+                }
+
+                self.current_mode = Some(pin_cfg.pin);
+            }
+            self.update_dynamic_properties();
+        }
+    }
+
+    fn handle_pin_type_changed(&mut self, idx: usize) {
+        if idx == 0 {
+            if self.current_mode.is_some() {
+                self.current_mode = None;
+                self.update_dynamic_properties();
+            }
+        } else {
+            if let Some(pin) = &self.selected_pin
+                && let PinType::Gpio(chosen_pin) = pin.pin_type
+            {
+                let expected_mode_idx = idx - 1;
+                let current_idx = self.current_mode.as_ref().map(|m| m.current_mode_index());
+
+                if current_idx != Some(expected_mode_idx) {
+                    let mut mode = self
+                        .current_mode
+                        .unwrap_or_else(|| chosen_pin.default_mode());
+                    mode.set_mode_index(expected_mode_idx);
+                    self.current_mode = Some(mode);
+                    self.update_dynamic_properties();
+                }
+            }
+        }
+    }
+
     fn update_dynamic_properties(&mut self) {
         let mut guard = self.dynamic_properties.guard();
         guard.clear();
