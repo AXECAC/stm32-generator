@@ -136,6 +136,16 @@ impl Config {
             .flat_map(|(_, peripheral)| peripheral.uses_pins())
             .collect()
     }
+
+    /// Возвращает пины, которые настроены не на странице GPIO.
+    ///
+    /// Такие пины должны отображаться занятыми на холсте, но не должны
+    /// редактироваться через страницу `pins`.
+    pub(crate) fn not_gpio_configured_pins(&self) -> Vec<ChosenPin> {
+        let mut pins = self.spi_pins();
+        pins.extend(self.peripheral_pins());
+        pins
+    }
     /// Проверка повторного использования [`ChosenPin`]
     /// Возвращает ошибку, если один из пинов уже используется
     fn check_conflicts_pins(&self, new_pins: &[ChosenPin]) -> ConfigResult<()> {
