@@ -129,6 +129,13 @@ impl Config {
         self.spi().iter().flat_map(|spi| spi.uses_pins()).collect()
     }
 
+    /// Возвращает пины, занятые периферийными устройствами.
+    pub(crate) fn peripheral_pins(&self) -> Vec<ChosenPin> {
+        self.peripherals()
+            .iter()
+            .flat_map(|(_, peripheral)| peripheral.uses_pins())
+            .collect()
+    }
     /// Проверка повторного использования [`ChosenPin`]
     /// Возвращает ошибку, если один из пинов уже используется
     fn check_conflicts_pins(&self, new_pins: &[ChosenPin]) -> ConfigResult<()> {
