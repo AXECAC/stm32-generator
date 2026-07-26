@@ -3,6 +3,7 @@ use crate::core::config::{Config, PinConfig};
 use crate::core::gpio::{ChosenPinWithMode, PinModeUiInfo};
 use crate::gui::components::chip_canvas::{ChipCanvasInput, ChipCanvasModel, ChipCanvasOutput};
 use crate::gui::components::property_row::{PropertyRowModel, PropertyRowOutput};
+use crate::gui::utils::splice_if_changed;
 use adw::prelude::*;
 use relm4::factory::FactoryVecDeque;
 use relm4::{
@@ -181,15 +182,25 @@ impl SimpleComponent for PinsPageModel {
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let board_pins = init.read().unwrap().board.build_pins();
-        let pins_data = Self::build_pins_with_aliases(&board_pins, &init.read().unwrap());
+        let config = init.read().unwrap();
+        let pins_data = config.build_pins_with_aliases(&board_pins);
+        let locked_pin_keys = config.not_gpio_configured_pins_keys(&board_pins);
         let chip_canvas = ChipCanvasModel::builder()
-            .launch((
-                init.read().unwrap().board.chip_label().to_string(),
-                pins_data,
-            ))
+            .launch((config.board.chip_label().to_string(), pins_data))
             .forward(sender.input_sender(), |output| match output {
                 ChipCanvasOutput::PinSelected(key) => PinsPageInput::PinSelected(key),
             });
+        drop(config);
+
+        if let Err(e) = chip_canvas
+            .sender()
+            .send(ChipCanvasInput::UpdateLockedPins(locked_pin_keys))
+        {
+            log::error!(
+                "Не удалось отправить UpdateLockedPins в компонент ChipCanvas: {:?}",
+                e
+            );
+        }
 
         let dynamic_properties = FactoryVecDeque::builder()
             .launch(adw::PreferencesGroup::default())
@@ -267,25 +278,10 @@ impl PinsPageModel {
             let mut v = vec!["Not Configured"];
             v.extend(first_gpio.default_mode().mode_variants());
 
-            let current_len = self.pin_type_model.n_items();
-            let mut changed = current_len as usize != v.len();
-            if !changed {
-                for i in 0..current_len {
-                    if let Some(item) = self.pin_type_model.item(i)
-                        && let Ok(string_obj) = item.downcast::<gtk::StringObject>()
-                        && string_obj.string() != v[i as usize]
-                    {
-                        changed = true;
-                        break;
-                    }
-                }
-            }
-            if changed {
-                self.pin_type_model.splice(0, current_len, v.as_slice());
-            }
+            splice_if_changed(&self.pin_type_model, v.as_slice());
         }
 
-        let pins_data = Self::build_pins_with_aliases(&self.board_pins, &config);
+        let pins_data = config.build_pins_with_aliases(&self.board_pins);
         if let Err(e) = self
             .chip_canvas
             .sender()
@@ -296,11 +292,40 @@ impl PinsPageModel {
                 e
             );
         }
+        self.update_locked_canvas_pins(&config);
     }
 
     fn handle_pin_selected(&mut self, key: &str) {
         self.error_message = None;
         if let Some(pin) = self.board_pins.iter().find(|p| p.key == key) {
+            if let PinType::Gpio(chosen_pin) = pin.pin_type
+                && self
+                    .config
+                    .read()
+                    .unwrap()
+                    .not_gpio_configured_pins()
+                    .contains(&chosen_pin)
+            {
+                self.selected_pin = None;
+                self.current_mode = None;
+                self.current_alias.clear();
+                self.alias_buffer.set_text("");
+                self.update_dynamic_properties();
+
+                if let Err(e) = self
+                    .chip_canvas
+                    .sender()
+                    .send(ChipCanvasInput::ClearSelection)
+                {
+                    log::error!(
+                        "Не удалось отправить ClearSelection в компонент ChipCanvas: {:?}",
+                        e
+                    );
+                }
+
+                return;
+            }
+
             self.selected_pin = Some(pin.clone());
 
             self.current_mode = None;
@@ -369,30 +394,19 @@ impl PinsPageModel {
         }
     }
 
-    /// Вспомогательная функция для сборки списка пинов вместе с их статусом
-    /// настройки и алиасами.
-    /// Возвращает вектор кортежей, содержащих:
-    /// - сам пин,
-    /// - алиас пина (если есть)
-    /// - настроен ли пин
-    fn build_pins_with_aliases(
-        board_pins: &[Pin],
-        config: &Config,
-    ) -> Vec<(Pin, Option<String>, bool)> {
-        let mut result = Vec::new();
-        let configured_gpio = config.gpio();
-        for pin in board_pins {
-            let mut alias = None;
-            let mut is_configured = false;
-            if let PinType::Gpio(chosen_pin) = pin.pin_type
-                && let Some(cfg) = configured_gpio.iter().find(|p| p.pin.pin() == chosen_pin)
-            {
-                is_configured = true;
-                alias = cfg.label.clone();
-            }
-            result.push((pin.clone(), alias, is_configured));
+    /// Отправляет в холст актуальный список некликабельных пинов.
+    fn update_locked_canvas_pins(&self, config: &Config) {
+        let locked_pin_keys = config.not_gpio_configured_pins_keys(&self.board_pins);
+        if let Err(e) = self
+            .chip_canvas
+            .sender()
+            .send(ChipCanvasInput::UpdateLockedPins(locked_pin_keys))
+        {
+            log::error!(
+                "Не удалось отправить UpdateLockedPins в компонент ChipCanvas: {:?}",
+                e
+            );
         }
-        result
     }
 
     /// Пересобирает конфигурацию для текущего выбранного пина на основе
@@ -429,7 +443,7 @@ impl PinsPageModel {
             // Локально обновляем холст чипа (не ждём, пока таб переключится обратно)
             {
                 let config = self.config.read().unwrap();
-                let pins_data = Self::build_pins_with_aliases(&self.board_pins, &config);
+                let pins_data = config.build_pins_with_aliases(&self.board_pins);
                 if let Err(e) = self
                     .chip_canvas
                     .sender()
@@ -437,6 +451,7 @@ impl PinsPageModel {
                 {
                     log::error!("Не удалось отправить UpdatePins в ChipCanvas: {:?}", e);
                 }
+                self.update_locked_canvas_pins(&config);
             }
 
             // Очищаем выбор, чтобы панель скрылась, а пин вернул свой обычный цвет (зеленый если настроен)

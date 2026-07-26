@@ -19,6 +19,7 @@ macro_rules! set_color {
 struct DrawingState {
     pub chip_label: String,
     pub pins: Vec<(Pin, Option<String>, bool)>,
+    pub locked_pin_keys: Vec<String>,
     pub selected_pin_key: Option<String>,
 }
 
@@ -54,6 +55,7 @@ pub struct ChipCanvasModel {
 #[derive(Debug)]
 pub enum ChipCanvasInput {
     UpdatePins(Vec<(Pin, Option<String>, bool)>),
+    UpdateLockedPins(Vec<String>),
     ClearSelection,
     HandleClick(f64, f64, f64, f64),
 }
@@ -94,6 +96,7 @@ impl SimpleComponent for ChipCanvasModel {
         let state = Rc::new(RefCell::new(DrawingState {
             chip_label: init.0,
             pins: init.1,
+            locked_pin_keys: Vec::new(),
             selected_pin_key: None,
         }));
 
@@ -133,6 +136,9 @@ impl SimpleComponent for ChipCanvasModel {
                 redraw = true;
                 request_resize = true;
             }
+            ChipCanvasInput::UpdateLockedPins(keys) => {
+                self.state.borrow_mut().locked_pin_keys = keys;
+            }
             ChipCanvasInput::ClearSelection => {
                 self.state.borrow_mut().selected_pin_key = None;
                 redraw = true;
@@ -145,6 +151,9 @@ impl SimpleComponent for ChipCanvasModel {
 
                 for (i, (pin, _, _)) in state.pins.iter().enumerate() {
                     if matches!(pin.pin_type, PinType::Power) {
+                        continue;
+                    }
+                    if state.locked_pin_keys.contains(&pin.key) {
                         continue;
                     }
 
@@ -448,7 +457,8 @@ impl ChipCanvasModel {
         }
     }
 
-    /// Оценивает общие размеры компоновки: общий требуемый размер виджета, длину/ширину пина и количество пинов на сторону.
+    /// Расчитывает общие размеры компоновки: общий требуемый размер виджета, длину/ширину пина и
+    /// количество пинов на сторону.
     fn calculate_layout(state: &DrawingState) -> (f64, f64, f64, usize) {
         let mut max_len = 0;
         let mut max_alias_len = 0;
