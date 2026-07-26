@@ -17,21 +17,31 @@ use std::sync::{Arc, RwLock};
 /// текущего выбранного на холсте пина, его базового режима работы, текстового алиаса,
 /// а также управляет динамически формируемым списком дополнительных свойств.
 pub struct PinsPageModel {
+    /// Глобальная конфигурация приложения
     pub config: Arc<RwLock<Config>>,
+    /// Список доступных пинов для выбранной платы
     board_pins: Vec<Pin>,
+    /// Пин, который в данный момент выбран для настройки
     selected_pin: Option<Pin>,
+    /// Пользовательское имя переменной для выбранного пина
     current_alias: String,
 
+    /// Текущий выбранный режим и его доп. свойства для пина
     current_mode: Option<ChosenPinWithMode>,
 
+    /// Модель списка вариантов режимов для выпадающего списка
     pin_type_model: gtk::StringList,
 
+    /// Буфер текстового поля для ввода алиаса
     alias_buffer: gtk::EntryBuffer,
 
+    /// Опциональное сообщение об ошибке для отображения пользователю
     error_message: Option<String>,
 
+    /// Динамический список дополнительных свойств выбранного режима
     dynamic_properties: FactoryVecDeque<PropertyRowModel>,
 
+    /// Контроллер дочернего компонента для отрисовки чипа
     chip_canvas: Controller<ChipCanvasModel>,
 }
 
@@ -175,7 +185,10 @@ impl SimpleComponent for PinsPageModel {
         let board_pins = init.read().unwrap().board.build_pins();
         let pins_data = Self::build_pins_with_aliases(&board_pins, &init.read().unwrap());
         let chip_canvas = ChipCanvasModel::builder()
-            .launch((init.read().unwrap().board.chip_label().to_string(), pins_data))
+            .launch((
+                init.read().unwrap().board.chip_label().to_string(),
+                pins_data,
+            ))
             .forward(sender.input_sender(), |output| match output {
                 ChipCanvasOutput::PinSelected(key) => PinsPageInput::PinSelected(key),
             });
@@ -369,7 +382,11 @@ impl PinsPageModel {
             {
                 let config = self.config.read().unwrap();
                 let pins_data = Self::build_pins_with_aliases(&self.board_pins, &config);
-                if let Err(e) = self.chip_canvas.sender().send(ChipCanvasInput::UpdatePins(pins_data)) {
+                if let Err(e) = self
+                    .chip_canvas
+                    .sender()
+                    .send(ChipCanvasInput::UpdatePins(pins_data))
+                {
                     log::error!("Не удалось отправить UpdatePins в ChipCanvas: {:?}", e);
                 }
             }
