@@ -3,6 +3,9 @@ use crate::core::config::{Config, SpiConfig, SpiMode};
 use crate::core::errors::ConfigError;
 use crate::core::gpio::{ChosenPin, ChosenSpiBus};
 use crate::gui::components::spi_bus_row::{SpiBusRowModel, SpiBusRowOutput};
+use crate::gui::utils::{
+    clamp_index, default_distinct_pin_index, mode_from_index, splice_if_changed,
+};
 use adw::prelude::*;
 use relm4::factory::FactoryVecDeque;
 use relm4::{ComponentParts, ComponentSender, RelmWidgetExt, SimpleComponent, adw, gtk};
@@ -463,16 +466,16 @@ impl SpiPageModel {
             .iter()
             .map(|bus| bus.variant_name())
             .collect::<Vec<_>>();
-        Self::splice_if_changed(&self.bus_model, &bus_names);
+        splice_if_changed(&self.bus_model, &bus_names);
 
         let pin_names = self
             .available_pins
             .iter()
             .map(|pin| pin.variant_name())
             .collect::<Vec<_>>();
-        Self::splice_if_changed(&self.sck_model, &pin_names);
-        Self::splice_if_changed(&self.miso_model, &pin_names);
-        Self::splice_if_changed(&self.mosi_model, &pin_names);
+        splice_if_changed(&self.sck_model, &pin_names);
+        splice_if_changed(&self.miso_model, &pin_names);
+        splice_if_changed(&self.mosi_model, &pin_names);
 
         self.clamp_form_indexes();
         self.refresh_configured_buses(configured_spis);
@@ -504,7 +507,7 @@ impl SpiPageModel {
             return;
         };
 
-        let mode = Self::mode_from_index(self.form_mode_idx);
+        let mode = mode_from_index(self.form_mode_idx);
         let miso = if self.form_use_miso {
             match self.available_pins.get(self.form_miso_idx).copied() {
                 Some(pin) => Some(pin),
@@ -624,8 +627,8 @@ impl SpiPageModel {
         self.form_bus_idx = 0;
         self.form_mode_idx = 0;
         self.form_sck_idx = 0;
-        self.form_miso_idx = Self::default_distinct_pin_index(1, self.available_pins.len());
-        self.form_mosi_idx = Self::default_distinct_pin_index(2, self.available_pins.len());
+        self.form_miso_idx = default_distinct_pin_index(1, self.available_pins.len());
+        self.form_mosi_idx = default_distinct_pin_index(2, self.available_pins.len());
         self.form_use_miso = true;
         self.form_use_mosi = true;
         self.form_frequency = "10".to_string();
@@ -637,65 +640,10 @@ impl SpiPageModel {
     /// Это нужно после смены платы или после добавления/удаления элементов,
     /// когда ранее выбранный индекс может выйти за границы обновлённого списка.
     fn clamp_form_indexes(&mut self) {
-        self.form_bus_idx = Self::clamp_index(self.form_bus_idx, self.available_buses.len());
-        self.form_sck_idx = Self::clamp_index(self.form_sck_idx, self.available_pins.len());
-        self.form_miso_idx = Self::clamp_index(self.form_miso_idx, self.available_pins.len());
-        self.form_mosi_idx = Self::clamp_index(self.form_mosi_idx, self.available_pins.len());
-    }
-
-    /// Возвращает `idx`, если он входит в диапазон `0..len`, иначе последний валидный индекс.
-    ///
-    /// Для пустого списка возвращает `0`, потому что GTK `ComboRow` всё равно
-    /// хранит выбранный индекс как число, а фактическая доступность контролируется
-    /// через `set_sensitive`.
-    fn clamp_index(idx: usize, len: usize) -> usize {
-        if len == 0 { 0 } else { idx.min(len - 1) }
-    }
-
-    /// Возвращает предпочитаемый индекс пина, если он существует.
-    ///
-    /// Используется для стартового выбора разных SCK/MISO/MOSI без динамического
-    /// вырезания выбранных пинов из соседних `ComboRow`.
-    fn default_distinct_pin_index(preferred_idx: usize, len: usize) -> usize {
-        if len > preferred_idx {
-            preferred_idx
-        } else {
-            0
-        }
-    }
-
-    /// Конвертирует индекс из `ComboRow` в [`SpiMode`].
-    ///
-    /// Использует `strum::FromRepr`, сгенерированный для core-enum. Невалидный
-    /// индекс трактуется как значение [`SpiMode::default`].
-    fn mode_from_index(idx: usize) -> SpiMode {
-        SpiMode::from_repr(idx as u8).unwrap_or_default()
-    }
-
-    /// Обновляет [`gtk::StringList`] только при реальном изменении содержимого.
-    ///
-    /// `StringList::splice` сбрасывает выбранный элемент и генерирует
-    /// `notify::selected`, поэтому вызов этого метода должен происходить под
-    /// [`Self::refresh_guard`].
-    fn splice_if_changed(model: &gtk::StringList, new_values: &[&str]) {
-        let current_len = model.n_items();
-        let mut changed = current_len as usize != new_values.len();
-
-        if !changed {
-            for i in 0..current_len {
-                if let Some(item) = model.item(i)
-                    && let Ok(string_obj) = item.downcast::<gtk::StringObject>()
-                    && string_obj.string() != new_values[i as usize]
-                {
-                    changed = true;
-                    break;
-                }
-            }
-        }
-
-        if changed {
-            model.splice(0, current_len, new_values);
-        }
+        self.form_bus_idx = clamp_index(self.form_bus_idx, self.available_buses.len());
+        self.form_sck_idx = clamp_index(self.form_sck_idx, self.available_pins.len());
+        self.form_miso_idx = clamp_index(self.form_miso_idx, self.available_pins.len());
+        self.form_mosi_idx = clamp_index(self.form_mosi_idx, self.available_pins.len());
     }
 
     /// Сохраняет сообщение ошибки для UI и пишет его в лог.
