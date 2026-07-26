@@ -4,7 +4,7 @@ use serde::Serialize;
 // TODO: добавить тесты для методов структур
 use crate::core::{
     UsesPins,
-    board::TargetBoard,
+    board::{Pin, PinType, TargetBoard},
     errors::ConfigError,
     gpio::{ChosenPin, ChosenPinWithMode, ChosenSpiBus},
     peripherals::Peripheral,
@@ -77,6 +77,44 @@ impl Config {
         pins
     }
 
+    /// Возвращает список пинов платы вместе с их alias-ами и статусом настройки.
+    ///
+    /// GPIO-пины получают пользовательский alias из [`PinConfig`]. Пины,
+    /// занятые SPI или периферией, также считаются настроенными, чтобы GUI мог
+    /// отобразить их занятыми и заблокировать редактирование вне страницы, где
+    /// они были созданы.
+    pub(crate) fn build_pins_with_aliases(
+        &self,
+        board_pins: &[Pin],
+    ) -> Vec<(Pin, Option<String>, bool)> {
+        let configured_gpio = self.gpio();
+        let peripheral_pins = self.peripheral_pins();
+
+        board_pins
+            .iter()
+            .map(|pin| {
+                let mut alias = None;
+                let mut is_configured = false;
+
+                if let PinType::Gpio(chosen_pin) = pin.pin_type
+                    && let Some(cfg) = configured_gpio.iter().find(|p| p.pin.pin() == chosen_pin)
+                {
+                    is_configured = true;
+                    alias = cfg.label.clone();
+                } else if let PinType::Gpio(chosen_pin) = pin.pin_type {
+                    if let Some(spi_bus_name) = self.spi_pin_bus_name(chosen_pin) {
+                        is_configured = true;
+                        alias = Some(spi_bus_name);
+                    } else if peripheral_pins.contains(&chosen_pin) {
+                        is_configured = true;
+                        alias = Some("Peripheral".to_string());
+                    }
+                }
+
+                (pin.clone(), alias, is_configured)
+            })
+            .collect()
+    }
     /// Проверка повторного использования [`ChosenPin`]
     /// Возвращает ошибку, если один из пинов уже используется
     fn check_conflicts_pins(&self, new_pins: &[ChosenPin]) -> ConfigResult<()> {
