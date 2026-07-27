@@ -15,8 +15,8 @@ pub struct TemplateContext {
     pub used_ports: Vec<String>,
     pub gpio_pins: Vec<GpioPinCtx>,
     pub spis: Vec<SpiCtx>,
-    pub has_w5500_tcp: bool,
-    pub w5500_peripherals: Vec<W5500Ctx>,
+    pub features: GeneratorFeaturesCtx,
+    pub peripherals: Vec<PeripheralCtx>,
 }
 
 #[derive(Serialize)]
@@ -32,6 +32,12 @@ pub struct PeripheralCtx {
     pub kind: &'static str,
     pub w5500: Option<W5500Ctx>,
 }
+
+struct PeripheralsBuildCtx {
+    features: GeneratorFeaturesCtx,
+    peripherals: Vec<PeripheralCtx>,
+}
+
 #[derive(Serialize)]
 pub struct GpioPinCtx {
     pub label: String,
@@ -42,7 +48,7 @@ pub struct GpioPinCtx {
     pub speed: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 pub struct PinCtx {
     pub port: String,
     pub pin_num: String,
@@ -74,7 +80,7 @@ pub struct SpiCtx {
     pub pins_tuple: String,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 pub struct W5500Ctx {
     pub id: u64,
     pub spi_bus: String,
@@ -87,12 +93,12 @@ pub struct W5500Ctx {
     pub socket_mode: SocketModeCtx,
 }
 
-#[derive(Serialize, Default)]
+#[derive(Clone, Serialize, Default)]
 pub struct SocketModeCtx {
     pub tcp_server: Option<TcpServerCtx>,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 pub struct TcpServerCtx {
     pub port: u16,
     pub socket_num: u8,
@@ -162,45 +168,78 @@ impl TemplateContext {
         spis
     }
 
-    /// Подготавливает контекст для всех модулей W5500.
-    /// Возвращает вектор контекстов периферии и флаг наличия TCP сервера.
-    fn build_w5500_ctx(config: &Config) -> (Vec<W5500Ctx>, bool) {
-        let mut w5500_peripherals = Vec::new();
-        let mut has_w5500_tcp = false;
+    /// Подготавливает контекст для всех периферийных устройств.
+    ///
+    /// Каждая периферия попадает в общий [`PeripheralCtx`], а агрегированные
+    /// флаги возможностей попадают в [`GeneratorFeaturesCtx`].
+    fn build_peripherals_ctx(config: &Config) -> PeripheralsBuildCtx {
+        let mut build_ctx = PeripheralsBuildCtx {
+            features: GeneratorFeaturesCtx {
+                uses_w5500: false,
+                uses_w5500_tcp: false,
+                uses_embedded_hal_bus: false,
+            },
+            peripherals: Vec::new(),
+        };
 
         for (id, peripheral) in config.peripherals() {
             match peripheral {
-                Peripheral::W5500(w) => {
-                    let spi_bus = match &w.spi_bus {
-                        ChosenSpiBus::StmF401(b) => {
-                            let s: &'static str = b.into();
-                            s.to_lowercase()
-                        }
-                    };
+                Peripheral::W5500(w5500) => {
+                    let (w5500_ctx, has_tcp) = Self::build_w5500_ctx(id.get(), w5500);
 
-                    let mut socket_mode_ctx = SocketModeCtx::default();
-                    match w.socket_mode {
-                        SocketMode::TcpServer { port, socket_num } => {
-                            has_w5500_tcp = true;
-                            socket_mode_ctx.tcp_server = Some(TcpServerCtx { port, socket_num });
-                        }
+                    build_ctx.features.uses_w5500 = true;
+                    build_ctx.features.uses_embedded_hal_bus = true;
+                    if has_tcp {
+                        build_ctx.features.uses_w5500_tcp = true;
                     }
 
-                    w5500_peripherals.push(W5500Ctx {
+                    build_ctx.peripherals.push(PeripheralCtx {
                         id: id.get(),
-                        spi_bus,
-                        cs: PinCtx::new(&w.cs),
-                        rst: PinCtx::new(&w.rst),
-                        mac: w.network.mac.0,
-                        ip: w.network.ip.octets(),
-                        subnet: w.network.subnet.octets(),
-                        gateway: w.network.gateway.octets(),
-                        socket_mode: socket_mode_ctx,
+                        kind: "w5500",
+                        w5500: Some(w5500_ctx),
                     });
                 }
             }
         }
-        (w5500_peripherals, has_w5500_tcp)
+
+        build_ctx
+    }
+
+    /// Подготавливает контекст для одного модуля W5500.
+    ///
+    /// Возвращает контекст устройства и флаг наличия TCP-сервера, который
+    /// используется feature-флагами генератора и legacy W5500-шаблонами.
+    fn build_w5500_ctx(id: u64, w5500: &W5500Config) -> (W5500Ctx, bool) {
+        let spi_bus = match &w5500.spi_bus {
+            ChosenSpiBus::StmF401(b) => {
+                let s: &'static str = b.into();
+                s.to_lowercase()
+            }
+        };
+
+        let (socket_mode_ctx, has_tcp) = match w5500.socket_mode {
+            SocketMode::TcpServer { port, socket_num } => (
+                SocketModeCtx {
+                    tcp_server: Some(TcpServerCtx { port, socket_num }),
+                },
+                true,
+            ),
+        };
+
+        (
+            W5500Ctx {
+                id,
+                spi_bus,
+                cs: PinCtx::new(&w5500.cs),
+                rst: PinCtx::new(&w5500.rst),
+                mac: w5500.network.mac.0,
+                ip: w5500.network.ip.octets(),
+                subnet: w5500.network.subnet.octets(),
+                gateway: w5500.network.gateway.octets(),
+                socket_mode: socket_mode_ctx,
+            },
+            has_tcp,
+        )
     }
 
     /// Строит контекст для Jinja из сырого конфига
@@ -231,7 +270,7 @@ impl TemplateContext {
 
         let gpio_pins = Self::build_gpio_ctx(config);
         let spis = Self::build_spi_ctx(config);
-        let (w5500_peripherals, has_w5500_tcp) = Self::build_w5500_ctx(config);
+        let peripherals_ctx = Self::build_peripherals_ctx(config);
 
         Ok(Self {
             project_name,
@@ -241,8 +280,8 @@ impl TemplateContext {
             used_ports,
             gpio_pins,
             spis,
-            has_w5500_tcp,
-            w5500_peripherals,
+            features: peripherals_ctx.features,
+            peripherals: peripherals_ctx.peripherals,
         })
     }
 }
