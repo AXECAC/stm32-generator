@@ -1,77 +1,64 @@
-use crate::core::board::PinType;
-use crate::core::config::{Config, SpiConfig, SpiMode};
-use crate::core::errors::ConfigError;
-use crate::core::gpio::{ChosenPin, ChosenSpiBus};
-use crate::gui::components::spi_bus_row::{SpiBusRowModel, SpiBusRowOutput};
-use crate::gui::utils::{
-    clamp_index, default_distinct_pin_index, mode_from_index, splice_if_changed,
-};
+use std::sync::{Arc, RwLock};
+
 use adw::prelude::*;
 use relm4::factory::FactoryVecDeque;
-use relm4::{ComponentParts, ComponentSender, RelmWidgetExt, SimpleComponent, adw, gtk};
-use std::cell::Cell;
-use std::rc::Rc;
-use std::sync::{Arc, RwLock};
-use strum::VariantNames;
+use relm4::{
+    Component, ComponentController, ComponentParts, ComponentSender, Controller, RelmWidgetExt,
+    SimpleComponent, adw, gtk,
+};
+
+use crate::core::board::PinType;
+use crate::core::config::{Config, SpiConfig};
+use crate::core::errors::ConfigError;
+use crate::core::gpio::{ChosenPin, ChosenSpiBus};
+use crate::gui::components::forms::spi::{SpiFormInput, SpiFormModel, SpiFormOutput};
+use crate::gui::components::spi_bus_row::{SpiBusRowModel, SpiBusRowOutput};
+
+/// Состояние factory-списка уже настроенных SPI-шин.
+struct ConfiguredSpiBusesList {
+    /// Кэш текущего списка SPI-шин для защиты от лишнего пересоздания factory-строк.
+    cache: Vec<SpiConfig>,
+    /// Factory-модель строк со сконфигурированными SPI-шинами.
+    factory: FactoryVecDeque<SpiBusRowModel>,
+}
+
+impl ConfiguredSpiBusesList {
+    /// Создаёт состояние списка на базе factory-модели.
+    fn new(factory: FactoryVecDeque<SpiBusRowModel>) -> Self {
+        Self {
+            cache: Vec::new(),
+            factory,
+        }
+    }
+
+    /// Синхронизирует factory-список сконфигурированных SPI-шин.
+    fn refresh(&mut self, spis: Vec<SpiConfig>) {
+        if self.cache == spis {
+            return;
+        }
+
+        self.cache = spis.clone();
+
+        let mut guard = self.factory.guard();
+        guard.clear();
+        for spi in spis {
+            guard.push_back(spi);
+        }
+    }
+}
 
 /// Модель страницы настройки SPI-шин.
 ///
-/// Страница хранит только локальное состояние формы и GTK-модели списков.
-/// Единым источником истины остаётся глобальный [`Config`], доступный через
-/// [`Arc<RwLock<_>>`](Arc). Списки обновляются лениво из `Config` при входе
-/// на вкладку и после успешного добавления или удаления SPI-шины.
+/// Страница хранит глобальный [`Config`], дочернюю форму добавления SPI и
+/// factory-список уже настроенных шин. Локальное состояние полей формы живёт в
+/// [`SpiFormModel`].
 pub struct SpiPageModel {
     /// Глобальная конфигурация приложения.
     pub(crate) config: Arc<RwLock<Config>>,
-
-    /// SPI-шины выбранного MCU, которые ещё не добавлены в [`Config`].
-    available_buses: Vec<ChosenSpiBus>,
-    /// GTK-модель для выпадающего списка доступных SPI-шин.
-    bus_model: gtk::StringList,
-    /// Индекс выбранной шины в [`Self::available_buses`].
-    form_bus_idx: usize,
-
-    /// GTK-модель со всеми вариантами [`SpiMode`].
-    mode_model: gtk::StringList,
-    /// Индекс выбранного режима SPI.
-    form_mode_idx: usize,
-
-    /// GTK-буфер поля ввода частоты.
-    frequency_buffer: gtk::EntryBuffer,
-    /// Текущее текстовое значение частоты в МГц.
-    form_frequency: String,
-
-    /// Свободные GPIO-пины, которые ещё не используются конфигурацией.
-    available_pins: Vec<ChosenPin>,
-    /// GTK-модель для выбора SCK.
-    sck_model: gtk::StringList,
-    /// GTK-модель для выбора MISO.
-    miso_model: gtk::StringList,
-    /// GTK-модель для выбора MOSI.
-    mosi_model: gtk::StringList,
-    /// Индекс выбранного SCK в [`Self::available_pins`].
-    form_sck_idx: usize,
-    /// Флаг использования линии MISO.
-    form_use_miso: bool,
-    /// Индекс выбранного MISO в [`Self::available_pins`].
-    form_miso_idx: usize,
-    /// Флаг использования линии MOSI.
-    form_use_mosi: bool,
-    /// Индекс выбранного MOSI в [`Self::available_pins`].
-    form_mosi_idx: usize,
-
-    /// Сообщение об ошибке формы, отображаемое пользователю.
-    form_error: Option<String>,
-    /// Флаг программного обновления GTK-моделей.
-    ///
-    /// `ComboRow` отправляет `notify::selected` даже при программном изменении
-    /// списка через `StringList::splice`. Этот guard позволяет игнорировать такие
-    /// echo-сигналы и не запускать лишние циклы обновления Relm4.
-    refresh_guard: Rc<Cell<bool>>,
-    /// Кэш текущего списка SPI-шин для защиты от лишнего пересоздания factory-строк.
-    configured_spis_cache: Vec<SpiConfig>,
-    /// Factory-модель строк со сконфигурированными SPI-шинами.
-    configured_buses: FactoryVecDeque<SpiBusRowModel>,
+    /// Дочерняя форма добавления SPI-шины.
+    form: Controller<SpiFormModel>,
+    /// Список уже сконфигурированных SPI-шин.
+    configured_buses: ConfiguredSpiBusesList,
 }
 
 /// Входящие сообщения страницы SPI.
@@ -79,24 +66,8 @@ pub struct SpiPageModel {
 pub enum SpiPageInput {
     /// Вкладка стала активной; нужно перечитать свежий [`Config`].
     UpdateConfig,
-    /// Пользователь выбрал SPI-шину по индексу в списке доступных шин.
-    BusSelected(usize),
-    /// Пользователь изменил текст частоты.
-    FrequencyChanged(String),
-    /// Пользователь выбрал режим SPI по индексу.
-    ModeSelected(usize),
-    /// Пользователь выбрал SCK по индексу в списке свободных пинов.
-    SckSelected(usize),
-    /// Пользователь включил или выключил линию MISO.
-    UseMisoToggled(bool),
-    /// Пользователь выбрал MISO по индексу в списке свободных пинов.
-    MisoSelected(usize),
-    /// Пользователь включил или выключил линию MOSI.
-    UseMosiToggled(bool),
-    /// Пользователь выбрал MOSI по индексу в списке свободных пинов.
-    MosiSelected(usize),
-    /// Пользователь нажал кнопку добавления SPI-шины.
-    AddBus,
+    /// Дочерняя форма собрала валидный [`SpiConfig`].
+    AddBus(SpiConfig),
     /// Пользователь запросил удаление сконфигурированной SPI-шины.
     RemoveBus(ChosenSpiBus),
 }
@@ -105,7 +76,7 @@ pub enum SpiPageInput {
 impl SimpleComponent for SpiPageModel {
     /// Данные, необходимые для инициализации страницы.
     type Init = Arc<RwLock<Config>>;
-    /// Сообщения, которые страница принимает от своих GTK-виджетов и дочерних компонентов.
+    /// Сообщения, которые страница принимает от дочерних компонентов.
     type Input = SpiPageInput;
     /// Страница не отправляет события наружу: все изменения пишутся прямо в общий [`Config`].
     type Output = ();
@@ -127,178 +98,8 @@ impl SimpleComponent for SpiPageModel {
                     set_spacing: 24,
                     set_margin_all: 24,
 
-                    adw::PreferencesGroup {
-                        set_title: "Добавить шину SPI",
-                        set_description: Some("Настройте параметры шины и выберите свободные пины."),
-
-                        adw::ComboRow {
-                            set_title: "Шина",
-                            set_model: Some(&model.bus_model),
-                            #[watch]
-                            set_selected: model.form_bus_idx as u32,
-                            #[watch]
-                            set_sensitive: !model.available_buses.is_empty(),
-
-                            connect_selected_notify[
-                                sender,
-                                refresh_guard = model.refresh_guard.clone()
-                            ] => move |row| {
-                                if refresh_guard.get() {
-                                    return;
-                                }
-                                sender.input(SpiPageInput::BusSelected(row.selected() as usize));
-                            }
-                        },
-
-                        adw::ComboRow {
-                            set_title: "Режим",
-                            set_subtitle: "CPOL / CPHA",
-                            set_model: Some(&model.mode_model),
-                            #[watch]
-                            set_selected: model.form_mode_idx as u32,
-
-                            connect_selected_notify[
-                                sender,
-                                refresh_guard = model.refresh_guard.clone()
-                            ] => move |row| {
-                                if refresh_guard.get() {
-                                    return;
-                                }
-                                sender.input(SpiPageInput::ModeSelected(row.selected() as usize));
-                            }
-                        },
-
-                        adw::ActionRow {
-                            set_title: "Частота (МГц)",
-
-                            add_suffix = &gtk::Entry {
-                                set_buffer: &model.frequency_buffer,
-                                set_width_chars: 8,
-                                set_max_width_chars: 8,
-                                set_input_purpose: gtk::InputPurpose::Digits,
-                                set_valign: gtk::Align::Center,
-
-                                connect_changed[sender] => move |entry| {
-                                    sender.input(SpiPageInput::FrequencyChanged(entry.text().to_string()));
-                                },
-
-                                connect_activate[sender] => move |_| {
-                                    sender.input(SpiPageInput::AddBus);
-                                }
-                            }
-                        },
-
-                        adw::ComboRow {
-                            set_title: "SCK",
-                            set_model: Some(&model.sck_model),
-                            #[watch]
-                            set_selected: model.form_sck_idx as u32,
-                            #[watch]
-                            set_sensitive: !model.available_pins.is_empty(),
-
-                            connect_selected_notify[
-                                sender,
-                                refresh_guard = model.refresh_guard.clone()
-                            ] => move |row| {
-                                if refresh_guard.get() {
-                                    return;
-                                }
-                                sender.input(SpiPageInput::SckSelected(row.selected() as usize));
-                            }
-                        },
-
-                        adw::ActionRow {
-                            set_title: "Включить MISO",
-
-                            add_suffix = &gtk::Switch {
-                                #[watch]
-                                set_active: model.form_use_miso,
-                                set_valign: gtk::Align::Center,
-
-                                connect_active_notify[sender] => move |switch| {
-                                    sender.input(SpiPageInput::UseMisoToggled(switch.is_active()));
-                                }
-                            }
-                        },
-
-                        adw::ComboRow {
-                            set_title: "MISO",
-                            set_model: Some(&model.miso_model),
-                            #[watch]
-                            set_selected: model.form_miso_idx as u32,
-                            #[watch]
-                            set_visible: model.form_use_miso,
-                            #[watch]
-                            set_sensitive: !model.available_pins.is_empty(),
-
-                            connect_selected_notify[
-                                sender,
-                                refresh_guard = model.refresh_guard.clone()
-                            ] => move |row| {
-                                if refresh_guard.get() {
-                                    return;
-                                }
-                                sender.input(SpiPageInput::MisoSelected(row.selected() as usize));
-                            }
-                        },
-
-                        adw::ActionRow {
-                            set_title: "Включить MOSI",
-
-                            add_suffix = &gtk::Switch {
-                                #[watch]
-                                set_active: model.form_use_mosi,
-                                set_valign: gtk::Align::Center,
-
-                                connect_active_notify[sender] => move |switch| {
-                                    sender.input(SpiPageInput::UseMosiToggled(switch.is_active()));
-                                }
-                            }
-                        },
-
-                        adw::ComboRow {
-                            set_title: "MOSI",
-                            set_model: Some(&model.mosi_model),
-                            #[watch]
-                            set_selected: model.form_mosi_idx as u32,
-                            #[watch]
-                            set_visible: model.form_use_mosi,
-                            #[watch]
-                            set_sensitive: !model.available_pins.is_empty(),
-
-                            connect_selected_notify[
-                                sender,
-                                refresh_guard = model.refresh_guard.clone()
-                            ] => move |row| {
-                                if refresh_guard.get() {
-                                    return;
-                                }
-                                sender.input(SpiPageInput::MosiSelected(row.selected() as usize));
-                            }
-                        }
-                    },
-
-                    gtk::Label {
-                        #[watch]
-                        set_label: model.form_error.as_deref().unwrap_or(""),
-                        #[watch]
-                        set_visible: model.form_error.is_some(),
-                        add_css_class: "error",
-                        set_wrap: true,
-                        set_xalign: 0.0,
-                    },
-
-                    gtk::Button {
-                        set_label: "Добавить шину SPI",
-                        add_css_class: "suggested-action",
-                        set_halign: gtk::Align::Start,
-                        #[watch]
-                        set_sensitive: !model.available_buses.is_empty() && !model.available_pins.is_empty(),
-
-                        connect_clicked[sender] => move |_| {
-                            sender.input(SpiPageInput::AddBus);
-                        }
-                    },
+                    #[local_ref]
+                    form_widget -> gtk::Box {},
 
                     #[local_ref]
                     configured_buses_group -> adw::PreferencesGroup {
@@ -315,6 +116,12 @@ impl SimpleComponent for SpiPageModel {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
+        let form = SpiFormModel::builder()
+            .launch(())
+            .forward(sender.input_sender(), |output| match output {
+                SpiFormOutput::Submit(spi) => SpiPageInput::AddBus(spi),
+            });
+
         let configured_buses = FactoryVecDeque::builder()
             .launch(adw::PreferencesGroup::default())
             .forward(sender.input_sender(), |output| match output {
@@ -323,93 +130,27 @@ impl SimpleComponent for SpiPageModel {
 
         let mut model = SpiPageModel {
             config: init,
-            available_buses: Vec::new(),
-            bus_model: gtk::StringList::new(&[]),
-            form_bus_idx: 0,
-            mode_model: gtk::StringList::new(SpiMode::VARIANTS),
-            form_mode_idx: 0,
-            frequency_buffer: gtk::EntryBuffer::new(Some("10")),
-            form_frequency: "10".to_string(),
-            available_pins: Vec::new(),
-            sck_model: gtk::StringList::new(&[]),
-            miso_model: gtk::StringList::new(&[]),
-            mosi_model: gtk::StringList::new(&[]),
-            form_sck_idx: 0,
-            form_use_miso: true,
-            form_miso_idx: 0,
-            form_use_mosi: true,
-            form_mosi_idx: 0,
-            form_error: None,
-            refresh_guard: Rc::new(Cell::new(false)),
-            configured_spis_cache: Vec::new(),
-            configured_buses,
+            form,
+            configured_buses: ConfiguredSpiBusesList::new(configured_buses),
         };
 
         model.refresh_from_config();
         model.reset_form_after_change();
 
-        let configured_buses_group = model.configured_buses.widget();
+        let form_widget = model.form.widget();
+        let configured_buses_group = model.configured_buses.factory.widget();
         let widgets = view_output!();
         ComponentParts { model, widgets }
     }
 
     /// Обрабатывает входящие сообщения страницы.
-    ///
-    /// Для событий выбора используется ранний выход, если состояние модели уже
-    /// совпадает с состоянием виджета. Это снижает риск echo-циклов при
-    /// реактивных обновлениях GTK.
     fn update(&mut self, message: Self::Input, _sender: ComponentSender<Self>) {
         match message {
             SpiPageInput::UpdateConfig => {
-                self.form_error = None;
+                self.send_form_input(SpiFormInput::ClearError);
                 self.refresh_from_config();
             }
-            SpiPageInput::BusSelected(idx) => {
-                if self.form_bus_idx == idx {
-                    return;
-                }
-                self.form_bus_idx = idx;
-            }
-            SpiPageInput::FrequencyChanged(frequency) => {
-                self.form_frequency = frequency;
-            }
-            SpiPageInput::ModeSelected(idx) => {
-                if self.form_mode_idx == idx {
-                    return;
-                }
-                self.form_mode_idx = idx;
-            }
-            SpiPageInput::SckSelected(idx) => {
-                if self.form_sck_idx == idx {
-                    return;
-                }
-                self.form_sck_idx = idx;
-            }
-            SpiPageInput::UseMisoToggled(active) => {
-                if self.form_use_miso == active {
-                    return;
-                }
-                self.form_use_miso = active;
-            }
-            SpiPageInput::MisoSelected(idx) => {
-                if self.form_miso_idx == idx {
-                    return;
-                }
-                self.form_miso_idx = idx;
-            }
-            SpiPageInput::UseMosiToggled(active) => {
-                if self.form_use_mosi == active {
-                    return;
-                }
-                self.form_use_mosi = active;
-            }
-            SpiPageInput::MosiSelected(idx) => {
-                if self.form_mosi_idx == idx {
-                    return;
-                }
-                self.form_mosi_idx = idx;
-            }
-            SpiPageInput::AddBus => self.add_bus(),
+            SpiPageInput::AddBus(spi) => self.add_bus(spi),
             SpiPageInput::RemoveBus(bus) => self.remove_bus(bus),
         }
     }
@@ -417,28 +158,22 @@ impl SimpleComponent for SpiPageModel {
 
 impl SpiPageModel {
     /// Перечитывает глобальный [`Config`] и синхронизирует локальные списки страницы.
-    ///
-    /// Метод пересобирает:
-    /// - список ещё не использованных SPI-шин;
-    /// - список свободных GPIO-пинов;
-    /// - список уже сконфигурированных SPI-шин.
-    ///
-    /// При обновлении GTK-моделей выставляется [`Self::refresh_guard`], чтобы
-    /// `notify::selected`, сгенерированные `StringList::splice`, не попали обратно
-    /// в [`Self::update`] как пользовательские события.
     fn refresh_from_config(&mut self) {
         let (available_buses, available_pins, configured_spis) = {
             let config = self.config.read().unwrap();
 
-            let configured_buses: Vec<ChosenSpiBus> =
-                config.spi().iter().map(|spi| spi.bus).collect();
+            let configured_buses = config
+                .spi()
+                .iter()
+                .map(|spi| spi.bus)
+                .collect::<Vec<ChosenSpiBus>>();
             let available_buses = config
                 .board
                 .mcu()
                 .all_spi_buses()
                 .into_iter()
                 .filter(|bus| !configured_buses.contains(bus))
-                .collect();
+                .collect::<Vec<_>>();
 
             let used_pins = config.all_uses_pins();
             let available_pins = config
@@ -451,97 +186,23 @@ impl SpiPageModel {
                     }
                     _ => None,
                 })
-                .collect();
+                .collect::<Vec<ChosenPin>>();
 
             (available_buses, available_pins, config.spi().to_vec())
         };
 
-        self.available_buses = available_buses;
-        self.available_pins = available_pins;
-
-        self.refresh_guard.set(true);
-
-        let bus_names = self
-            .available_buses
-            .iter()
-            .map(|bus| bus.variant_name())
-            .collect::<Vec<_>>();
-        splice_if_changed(&self.bus_model, &bus_names);
-
-        let pin_names = self
-            .available_pins
-            .iter()
-            .map(|pin| pin.variant_name())
-            .collect::<Vec<_>>();
-        splice_if_changed(&self.sck_model, &pin_names);
-        splice_if_changed(&self.miso_model, &pin_names);
-        splice_if_changed(&self.mosi_model, &pin_names);
-
-        self.clamp_form_indexes();
-        self.refresh_configured_buses(configured_spis);
-
-        self.refresh_guard.set(false);
+        self.send_form_input(SpiFormInput::UpdateOptions {
+            buses: available_buses,
+            pins: available_pins,
+        });
+        self.configured_buses.refresh(configured_spis);
     }
 
-    /// Собирает [`SpiConfig`] из формы и добавляет его в глобальный [`Config`].
-    ///
-    /// Все ошибки валидации пишутся в UI через [`Self::set_form_error`] и в лог
-    /// через `log::error!`. После успешного добавления форма сбрасывается, а
-    /// локальные списки перечитываются из глобальной конфигурации.
-    fn add_bus(&mut self) {
-        let frequency_mhz = match self.form_frequency.trim().parse::<u32>() {
-            Ok(frequency_mhz) if frequency_mhz > 0 => frequency_mhz,
-            _ => {
-                self.set_form_error("Частота SPI должна быть положительным числом");
-                return;
-            }
-        };
-
-        let Some(bus) = self.available_buses.get(self.form_bus_idx).copied() else {
-            self.set_form_error("Нет доступных SPI-шин для добавления");
-            return;
-        };
-
-        let Some(sck) = self.available_pins.get(self.form_sck_idx).copied() else {
-            self.set_form_error("Выберите SCK из списка свободных пинов");
-            return;
-        };
-
-        let mode = mode_from_index(self.form_mode_idx);
-        let miso = if self.form_use_miso {
-            match self.available_pins.get(self.form_miso_idx).copied() {
-                Some(pin) => Some(pin),
-                None => {
-                    self.set_form_error("Выберите MISO из списка свободных пинов");
-                    return;
-                }
-            }
-        } else {
-            None
-        };
-        let mosi = if self.form_use_mosi {
-            match self.available_pins.get(self.form_mosi_idx).copied() {
-                Some(pin) => Some(pin),
-                None => {
-                    self.set_form_error("Выберите MOSI из списка свободных пинов");
-                    return;
-                }
-            }
-        } else {
-            None
-        };
-
-        let spi = match SpiConfig::new(bus, frequency_mhz, mode, sck, miso, mosi) {
-            Ok(spi) => spi,
-            Err(e) => {
-                self.set_form_error(e.to_string());
-                return;
-            }
-        };
-
+    /// Добавляет [`SpiConfig`] в глобальный [`Config`].
+    fn add_bus(&mut self, spi: SpiConfig) {
         let add_result = {
             let mut config = self.config.write().unwrap();
-            config.add_spi_bus(spi)
+            config.add_spi_bus(spi.clone())
         };
 
         if let Err(e) = add_result {
@@ -551,22 +212,19 @@ impl SpiPageModel {
 
         log::info!(
             "SPI-шина {} успешно добавлена: frequency_mhz={}, mode={:?}, sck={}, miso={:?}, mosi={:?}",
-            bus.variant_name(),
-            frequency_mhz,
-            mode,
-            sck.variant_name(),
-            miso.map(|pin| pin.variant_name()),
-            mosi.map(|pin| pin.variant_name()),
+            spi.bus.variant_name(),
+            spi.frequency_mhz,
+            spi.mode,
+            spi.sck.variant_name(),
+            spi.miso.map(|pin| pin.variant_name()),
+            spi.mosi.map(|pin| pin.variant_name()),
         );
-        self.form_error = None;
+        self.send_form_input(SpiFormInput::ClearError);
         self.refresh_from_config();
         self.reset_form_after_change();
     }
 
     /// Удаляет SPI-шину из глобального [`Config`].
-    ///
-    /// Если шина используется периферией, удаление блокируется core-валидацией,
-    /// ошибка отображается в форме и дополнительно пишется в лог.
     fn remove_bus(&mut self, bus: ChosenSpiBus) {
         let remove_result = {
             let mut config = self.config.write().unwrap();
@@ -595,61 +253,27 @@ impl SpiPageModel {
         }
 
         log::info!("SPI-шина {} успешно удалена", bus.variant_name());
-        self.form_error = None;
+        self.send_form_input(SpiFormInput::ClearError);
         self.refresh_from_config();
         self.reset_form_after_change();
     }
 
-    /// Синхронизирует factory-список сконфигурированных SPI-шин.
-    ///
-    /// Пересоздание строк выполняется только при реальном изменении списка,
-    /// чтобы не провоцировать лишние GTK/Relm4 обновления.
-    fn refresh_configured_buses(&mut self, spis: Vec<SpiConfig>) {
-        if self.configured_spis_cache == spis {
-            return;
-        }
+    /// Сбрасывает форму добавления SPI в безопасные значения.
+    fn reset_form_after_change(&self) {
+        self.send_form_input(SpiFormInput::ResetAfterChange);
+    }
 
-        self.configured_spis_cache = spis.clone();
-
-        let mut guard = self.configured_buses.guard();
-        guard.clear();
-        for spi in spis {
-            guard.push_back(spi);
+    /// Передаёт сообщение дочерней форме SPI.
+    fn send_form_input(&self, input: SpiFormInput) {
+        if let Err(e) = self.form.sender().send(input) {
+            log::error!("Не удалось отправить сообщение в SpiFormModel: {:?}", e);
         }
     }
 
-    /// Сбрасывает форму добавления SPI в безопасные значения по умолчанию.
-    ///
-    /// При наличии нескольких свободных пинов SCK/MISO/MOSI получают разные
-    /// стартовые индексы, чтобы обычное первое добавление не падало из-за
-    /// совпадения пинов.
-    fn reset_form_after_change(&mut self) {
-        self.form_bus_idx = 0;
-        self.form_mode_idx = 0;
-        self.form_sck_idx = 0;
-        self.form_miso_idx = default_distinct_pin_index(1, self.available_pins.len());
-        self.form_mosi_idx = default_distinct_pin_index(2, self.available_pins.len());
-        self.form_use_miso = true;
-        self.form_use_mosi = true;
-        self.form_frequency = "10".to_string();
-        self.frequency_buffer.set_text("10");
-    }
-
-    /// Ограничивает индексы формы актуальными размерами списков.
-    ///
-    /// Это нужно после смены платы или после добавления/удаления элементов,
-    /// когда ранее выбранный индекс может выйти за границы обновлённого списка.
-    fn clamp_form_indexes(&mut self) {
-        self.form_bus_idx = clamp_index(self.form_bus_idx, self.available_buses.len());
-        self.form_sck_idx = clamp_index(self.form_sck_idx, self.available_pins.len());
-        self.form_miso_idx = clamp_index(self.form_miso_idx, self.available_pins.len());
-        self.form_mosi_idx = clamp_index(self.form_mosi_idx, self.available_pins.len());
-    }
-
-    /// Сохраняет сообщение ошибки для UI и пишет его в лог.
-    fn set_form_error(&mut self, message: impl Into<String>) {
+    /// Передаёт ошибку в форму SPI и пишет её в лог.
+    fn set_form_error(&self, message: impl Into<String>) {
         let message = message.into();
         log::error!("Ошибка настройки SPI: {}", message);
-        self.form_error = Some(message);
+        self.send_form_input(SpiFormInput::SetError(message));
     }
 }
