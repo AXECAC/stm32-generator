@@ -196,12 +196,18 @@ impl Config {
     }
 
     pub fn add_peripheral(&mut self, peripheral: Peripheral) -> ConfigResult<PeripheralId> {
-        if !self
-            .spi_buses
+        let spi_bus = peripheral.spi_bus();
+
+        if !self.spi_buses.iter().any(|spi| spi.bus == spi_bus) {
+            return Err(ConfigError::SpiBusNotFound(spi_bus));
+        }
+
+        if self
+            .peripherals
             .iter()
-            .any(|spi| spi.bus == peripheral.spi_bus())
+            .any(|(_, configured_peripheral)| configured_peripheral.spi_bus() == spi_bus)
         {
-            return Err(ConfigError::SpiBusNotFound(peripheral.spi_bus()));
+            return Err(ConfigError::SpiBusAlreadyUsedByPeripheral(spi_bus));
         }
 
         self.check_conflicts_pins(&peripheral.uses_pins())?;
