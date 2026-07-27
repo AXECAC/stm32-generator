@@ -2,7 +2,7 @@ use serde::Serialize;
 
 pub mod ethernet;
 
-use crate::core::{UsesPins, gpio::ChosenSpiBus};
+use crate::core::{UsesPins, errors::ConfigError, gpio::ChosenSpiBus};
 
 macro_rules! define_peripherals {
     (
@@ -42,6 +42,14 @@ macro_rules! define_peripherals {
                 match self {
                     $(
                         Self::$variant(config) => config.spi_bus,
+                    )*
+                }
+            }
+
+            pub fn validate(&self) -> Result<(), ConfigError> {
+                match self {
+                    $(
+                        Self::$variant(config) => config.validate(),
                     )*
                 }
             }

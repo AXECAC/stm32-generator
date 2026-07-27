@@ -52,17 +52,26 @@ impl W5500Config {
         network: NetworkConfig,
         socket_mode: SocketMode,
     ) -> Result<Self, ConfigError> {
-        if cs == rst {
-            return Err(ConfigError::PinAlreadyInUse(rst));
-        }
-
-        Ok(Self {
+        let config = Self {
             spi_bus,
             cs,
             rst,
             network,
             socket_mode,
-        })
+        };
+
+        config.validate()?;
+
+        Ok(config)
+    }
+
+    /// Проверяет конфигурацию W5500.
+    pub fn validate(&self) -> Result<(), ConfigError> {
+        if self.cs == self.rst {
+            return Err(ConfigError::PinAlreadyInUse(self.rst));
+        }
+
+        Ok(())
     }
 }
 
