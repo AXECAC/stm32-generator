@@ -69,3 +69,25 @@ impl<T: Copy> ComboField<T> {
     }
 }
 
+/// Состояние текстового поля формы.
+pub(crate) struct EntryField {
+    /// GTK-буфер поля.
+    pub(crate) buffer: gtk::EntryBuffer,
+    /// Текущее текстовое значение.
+    pub(crate) value: String,
+}
+
+impl EntryField {
+    /// Создаёт текстовое поле с начальным значением.
+    pub(crate) fn new(value: &str) -> Self {
+        Self {
+            buffer: gtk::EntryBuffer::new(Some(value)),
+            value: value.to_string(),
+        }
+    }
+
+    /// Обновляет локальное значение поля.
+    pub(crate) fn set_value(&mut self, value: String) {
+        self.value = value;
+    }
+}
