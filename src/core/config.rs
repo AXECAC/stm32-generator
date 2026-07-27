@@ -8,6 +8,7 @@ use crate::core::{
     errors::ConfigError,
     gpio::{ChosenPin, ChosenPinWithMode, ChosenSpiBus},
     peripherals::Peripheral,
+    peripherals::ethernet::w5500::SocketMode,
 };
 
 type ConfigResult<T> = Result<T, ConfigError>;
@@ -173,6 +174,43 @@ impl Config {
         Ok(())
     }
 
+    /// Проверка повторного использования сетевых параметров периферии.
+    fn check_conflicts_peripherals(&self, new_peripheral: &Peripheral) -> ConfigResult<()> {
+        for (_, configured_peripheral) in self.peripherals() {
+            match (configured_peripheral, new_peripheral) {
+                (Peripheral::W5500(configured), Peripheral::W5500(new)) => {
+                    if configured.network.mac == new.network.mac {
+                        return Err(ConfigError::DuplicateMacAddress(new.network.mac));
+                    }
+
+                    if configured.network.ip == new.network.ip {
+                        return Err(ConfigError::DuplicateIpAddress(new.network.ip));
+                    }
+
+                    match (&configured.socket_mode, &new.socket_mode) {
+                        (
+                            SocketMode::TcpServer {
+                                port: configured_port,
+                                socket_num: configured_socket_num,
+                            },
+                            SocketMode::TcpServer { port, socket_num },
+                        ) => {
+                            if configured_port == port {
+                                return Err(ConfigError::DuplicateTcpPort(*port));
+                            }
+
+                            if configured_socket_num == socket_num {
+                                return Err(ConfigError::DuplicateSocketNumber(*socket_num));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn add_gpio_pin(&mut self, gpio_pin: PinConfig) -> ConfigResult<()> {
         self.check_conflicts_pins(&[gpio_pin.pin.into()])?;
 
@@ -210,6 +248,8 @@ impl Config {
             return Err(ConfigError::SpiBusAlreadyUsedByPeripheral(spi_bus));
         }
 
+        peripheral.validate()?;
+        self.check_conflicts_peripherals(&peripheral)?;
         self.check_conflicts_pins(&peripheral.uses_pins())?;
 
         let periph_id = PeripheralId(self.next_periph_id);
