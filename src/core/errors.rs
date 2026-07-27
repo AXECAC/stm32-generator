@@ -1,9 +1,12 @@
 use thiserror::Error;
 
+use std::net::Ipv4Addr;
+
 use crate::core::gpio::{ChosenPin, ChosenSpiBus};
+use crate::core::peripherals::ethernet::MacAddr;
 
 /// Ошибки создания конфигурации
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq, Eq)]
 pub enum ConfigError {
     #[error("Дублирующийся SPI: {0:?}")]
     DuplicateSpiBus(ChosenSpiBus),
@@ -22,6 +25,18 @@ pub enum ConfigError {
 
     #[error("Название пина уже используется: {0}")]
     LabelAlreadyInUse(String),
+
+    #[error("MAC-адрес уже используется: {0}")]
+    DuplicateMacAddress(MacAddr),
+
+    #[error("IP-адрес уже используется: {0}")]
+    DuplicateIpAddress(Ipv4Addr),
+
+    #[error("TCP-порт уже используется: {0}")]
+    DuplicateTcpPort(u16),
+
+    #[error("Номер сокета уже используется: {0}")]
+    DuplicateSocketNumber(u8),
 }
 
 /// Ошибки генерации проекта
