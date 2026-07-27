@@ -1,8 +1,10 @@
 //! Переиспользуемые модели полей форм GUI.
 
+pub(crate) mod spi;
 pub(crate) mod w5500;
 
 use relm4::gtk;
+use relm4::gtk::prelude::*;
 
 use crate::gui::utils::{clamp_index, splice_if_changed};
 
@@ -90,5 +92,11 @@ impl EntryField {
     /// Обновляет локальное значение поля.
     pub(crate) fn set_value(&mut self, value: String) {
         self.value = value;
+    }
+
+    /// Обновляет локальное значение и GTK-буфер поля.
+    pub(crate) fn set_text(&mut self, value: &str) {
+        self.value = value.to_string();
+        self.buffer.set_text(value);
     }
 }
