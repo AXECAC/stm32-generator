@@ -2,7 +2,7 @@ use crate::core::config::Config;
 use crate::core::errors::GeneratorError;
 use crate::core::gpio::{ChosenPin, ChosenSpiBus};
 use crate::core::peripherals::Peripheral;
-use crate::core::peripherals::ethernet::w5500::SocketMode;
+use crate::core::peripherals::ethernet::w5500::{SocketMode, W5500Config};
 use serde::Serialize;
 use std::collections::HashSet;
 
@@ -19,6 +19,19 @@ pub struct TemplateContext {
     pub w5500_peripherals: Vec<W5500Ctx>,
 }
 
+#[derive(Serialize)]
+pub struct GeneratorFeaturesCtx {
+    pub uses_w5500: bool,
+    pub uses_w5500_tcp: bool,
+    pub uses_embedded_hal_bus: bool,
+}
+
+#[derive(Serialize)]
+pub struct PeripheralCtx {
+    pub id: u64,
+    pub kind: &'static str,
+    pub w5500: Option<W5500Ctx>,
+}
 #[derive(Serialize)]
 pub struct GpioPinCtx {
     pub label: String,
