@@ -1,19 +1,27 @@
+use std::sync::{Arc, RwLock};
+
+use adw::prelude::*;
+use relm4::{ComponentParts, ComponentSender, SimpleComponent, adw, gtk};
+
 use crate::core::board::TargetBoard;
 use crate::core::config::Config;
 use crate::core::gpio::TargetMcu;
-use adw::prelude::*;
-use relm4::{ComponentParts, ComponentSender, SimpleComponent, adw, gtk};
-use std::sync::{Arc, RwLock};
+use crate::gui::components::forms::ComboField;
 
+/// Состояние страницы выбора стартовой платы.
 pub struct StartPageModel {
+    /// Глобальная конфигурация приложения.
     pub(crate) config: Arc<RwLock<Config>>,
-    pub(crate) boards: Vec<TargetBoard>,
-    current_board_index: usize,
+    /// Типизированное состояние выпадающего списка плат.
+    board: ComboField<TargetBoard>,
 }
 
+/// Входящие сообщения стартовой страницы.
 #[derive(Debug)]
 pub enum StartPageInput {
+    /// Вкладка стала активной; нужно перечитать свежий [`Config`].
     UpdateConfig,
+    /// Пользователь выбрал плату по индексу.
     BoardSelected(usize),
 }
 
@@ -48,14 +56,10 @@ impl SimpleComponent for StartPageModel {
                         adw::ComboRow {
                             set_title: "Отладочная плата / MCU",
                             set_subtitle: "Выберите чип для вашего проекта",
-
-                            set_model: Some(&{
-                                let names: Vec<String> = model.boards.iter().map(|b| b.name()).collect();
-                                gtk::StringList::new(&names.iter().map(|s| s.as_str()).collect::<Vec<_>>())
-                            }),
+                            set_model: Some(&model.board.model),
 
                             #[watch]
-                            set_selected: model.current_board_index as u32,
+                            set_selected: model.board.selected_idx as u32,
 
                             connect_selected_notify[sender] => move |row| {
                                 sender.input(StartPageInput::BoardSelected(row.selected() as usize));
@@ -84,14 +88,24 @@ impl SimpleComponent for StartPageModel {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let boards = vec![TargetBoard::BlackPill(TargetMcu::StmF401)];
+        let board_items = vec![TargetBoard::BlackPill(TargetMcu::StmF401)];
+        let board_labels = board_items
+            .iter()
+            .map(TargetBoard::name)
+            .collect::<Vec<_>>();
+        let board_label_refs = board_labels.iter().map(String::as_str).collect::<Vec<_>>();
+
+        let mut board = ComboField::new(board_items, &board_label_refs);
         let current_board = init.read().unwrap().board;
-        let current_board_index = boards.iter().position(|b| *b == current_board).unwrap_or(0);
+        board.selected_idx = board
+            .items
+            .iter()
+            .position(|board| *board == current_board)
+            .unwrap_or(0);
 
         let model = StartPageModel {
             config: init,
-            boards,
-            current_board_index,
+            board,
         };
         let widgets = view_output!();
         ComponentParts { model, widgets }
@@ -101,20 +115,29 @@ impl SimpleComponent for StartPageModel {
         match message {
             StartPageInput::UpdateConfig => {
                 let current_board = self.config.read().unwrap().board;
-                self.current_board_index = self
-                    .boards
+                self.board.selected_idx = self
+                    .board
+                    .items
                     .iter()
                     .position(|b| *b == current_board)
                     .unwrap_or(0);
             }
             StartPageInput::BoardSelected(idx) => {
-                if let Some(board) = self.boards.get(idx) {
-                    let mut config = self.config.write().unwrap();
-                    if *board != config.board {
-                        // Сбрасываем конфиг при смене платы
-                        *config = Config::new(*board);
-                        self.current_board_index = idx;
-                    }
+                if self.board.selected_idx == idx {
+                    return;
+                }
+
+                let Some(board) = self.board.items.get(idx).copied() else {
+                    self.board.clamp_selected();
+                    return;
+                };
+
+                self.board.selected_idx = idx;
+
+                let mut config = self.config.write().unwrap();
+                if board != config.board {
+                    // Сбрасываем конфиг при смене платы
+                    *config = Config::new(board);
                 }
             }
         }
