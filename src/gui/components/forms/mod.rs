@@ -1,5 +1,6 @@
 //! Переиспользуемые модели полей форм GUI.
 
+pub(crate) mod pin_mode;
 pub(crate) mod spi;
 pub(crate) mod w5500;
 
