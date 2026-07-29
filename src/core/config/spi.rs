@@ -187,4 +187,27 @@ mod tests {
 
         assert_eq!(result, Err(ConfigError::PinAlreadyInUse(duplicated_pin)));
     }
+
+    /// Проверяет корректность возвращаемых пинов используемых SPI
+    #[test]
+    fn uses_pins_returns_all_configured_pins_in_bus_order() {
+        let config = SpiConfig::new(
+            ChosenSpiBus::StmF401(StmF401SpiBus::SPI1),
+            10,
+            SpiMode::Mode0,
+            ChosenPin::StmF401(StmF401Pin::A5),
+            Some(ChosenPin::StmF401(StmF401Pin::A6)),
+            Some(ChosenPin::StmF401(StmF401Pin::A7)),
+        )
+        .expect("distinct SPI pins should produce a valid config");
+
+        assert_eq!(
+            config.uses_pins(),
+            vec![
+                ChosenPin::StmF401(StmF401Pin::A5),
+                ChosenPin::StmF401(StmF401Pin::A6),
+                ChosenPin::StmF401(StmF401Pin::A7),
+            ]
+        );
+    }
 }
