@@ -210,4 +210,20 @@ mod tests {
             ]
         );
     }
+
+    /// Проверяет, что отсутствующие опциональные пины не попадают в результат.
+    #[test]
+    fn uses_pins_omits_unconfigured_optional_pins() {
+        let config = SpiConfig::new(
+            ChosenSpiBus::StmF401(StmF401SpiBus::SPI1),
+            10,
+            SpiMode::Mode0,
+            ChosenPin::StmF401(StmF401Pin::A5),
+            None,
+            None,
+        )
+        .expect("SCK-only SPI config should be valid");
+
+        assert_eq!(config.uses_pins(), vec![ChosenPin::StmF401(StmF401Pin::A5)]);
+    }
 }
