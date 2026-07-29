@@ -100,3 +100,34 @@ impl SpiMode {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::gpio::f4::f401::{StmF401Pin, StmF401SpiBus};
+
+    /// Проверяет корректное создание SPI-конфигурации с тремя различными пинами.
+    #[test]
+    fn new_accepts_distinct_pins() {
+        let result = SpiConfig::new(
+            ChosenSpiBus::StmF401(StmF401SpiBus::SPI1),
+            10,
+            SpiMode::Mode0,
+            ChosenPin::StmF401(StmF401Pin::A5),
+            Some(ChosenPin::StmF401(StmF401Pin::A6)),
+            Some(ChosenPin::StmF401(StmF401Pin::A7)),
+        );
+
+        assert_eq!(
+            result,
+            Ok(SpiConfig {
+                bus: ChosenSpiBus::StmF401(StmF401SpiBus::SPI1),
+                frequency_mhz: 10,
+                mode: SpiMode::Mode0,
+                sck: ChosenPin::StmF401(StmF401Pin::A5),
+                miso: Some(ChosenPin::StmF401(StmF401Pin::A6)),
+                mosi: Some(ChosenPin::StmF401(StmF401Pin::A7)),
+            })
+        );
+    }
+}
