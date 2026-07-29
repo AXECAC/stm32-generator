@@ -130,4 +130,61 @@ mod tests {
             })
         );
     }
+
+    /// Проверяет, что MISO не может использовать тот же пин, что и SCK.
+    #[test]
+    fn new_rejects_miso_equal_to_sck() {
+        let duplicated_pin = ChosenPin::StmF401(StmF401Pin::A5);
+
+        let result = SpiConfig::new(
+            ChosenSpiBus::StmF401(StmF401SpiBus::SPI1),
+            10,
+            SpiMode::Mode0,
+            duplicated_pin,
+            Some(duplicated_pin),
+            None,
+        );
+
+        assert_eq!(result, Err(ConfigError::PinAlreadyInUse(duplicated_pin)));
+    }
+
+    /// Проверяет, что MOSI не может использовать тот же пин, что и SCK.
+    #[test]
+    fn new_rejects_mosi_equal_to_sck() {
+        let duplicated_pin = {
+            let pin = StmF401Pin::A5;
+            ChosenPin::StmF401(pin)
+        };
+
+        let result = SpiConfig::new(
+            ChosenSpiBus::StmF401(StmF401SpiBus::SPI1),
+            10,
+            SpiMode::Mode0,
+            duplicated_pin,
+            None,
+            Some(duplicated_pin),
+        );
+
+        assert_eq!(result, Err(ConfigError::PinAlreadyInUse(duplicated_pin)));
+    }
+
+    /// Проверяет, что MOSI и MISO не могут использовать один и тот же пин.
+    #[test]
+    fn new_rejects_mosi_equal_to_miso() {
+        let duplicated_pin = {
+            let pin = StmF401Pin::A6;
+            ChosenPin::StmF401(pin)
+        };
+
+        let result = SpiConfig::new(
+            ChosenSpiBus::StmF401(StmF401SpiBus::SPI1),
+            10,
+            SpiMode::Mode0,
+            ChosenPin::StmF401(StmF401Pin::A5),
+            Some(duplicated_pin),
+            Some(duplicated_pin),
+        );
+
+        assert_eq!(result, Err(ConfigError::PinAlreadyInUse(duplicated_pin)));
+    }
 }
