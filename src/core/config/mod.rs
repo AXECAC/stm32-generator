@@ -1,15 +1,19 @@
 use serde::Serialize;
 
-// TODO: добавить описание модуля
-// TODO: добавить тесты для методов структур
 use crate::core::{
     UsesPins,
     board::{Pin, PinType, TargetBoard},
     errors::ConfigError,
-    gpio::{ChosenPin, ChosenPinWithMode, ChosenSpiBus},
+    gpio::{ChosenPin, ChosenSpiBus},
     peripherals::Peripheral,
     peripherals::ethernet::w5500::SocketMode,
 };
+
+mod gpio;
+mod spi;
+
+pub use gpio::PinConfig;
+pub use spi::{SpiConfig, SpiMode};
 
 type ConfigResult<T> = Result<T, ConfigError>;
 
@@ -22,7 +26,7 @@ impl PeripheralId {
     }
 }
 
-/// Вся конфигурация платы и её переферии
+/// Вся конфигурация платы и её периферии.
 #[derive(Debug, Clone, Serialize)]
 pub struct Config {
     pub board: TargetBoard,
@@ -44,22 +48,22 @@ impl Config {
         }
     }
 
-    /// Возвращает слайс gpio пинов из [`Config`].
+    /// Возвращает слайс GPIO-пинов из [`Config`].
     pub fn gpio(&self) -> &[PinConfig] {
         &self.gpio_pins
     }
 
-    /// Возвращает слайс spi шин из [`Config`].
+    /// Возвращает слайс SPI-шин из [`Config`].
     pub fn spi(&self) -> &[SpiConfig] {
         &self.spi_buses
     }
 
-    /// Возвращает слайс peripherals из [`Config`].
+    /// Возвращает слайс периферийных устройств из [`Config`].
     pub fn peripherals(&self) -> &[(PeripheralId, Peripheral)] {
         &self.peripherals
     }
 
-    /// Возвращает список всех использованных пинов с gpio, spi и переферии
+    /// Возвращает список всех пинов, используемых GPIO, SPI и периферией.
     pub fn all_uses_pins(&self) -> Vec<ChosenPin> {
         let mut pins = Vec::new();
 
@@ -67,12 +71,12 @@ impl Config {
             pins.push(pin.pin.into());
         }
 
-        for pin in &self.spi_buses {
-            pins.extend(pin.uses_pins());
+        for spi in &self.spi_buses {
+            pins.extend(spi.uses_pins());
         }
 
-        for pin in &self.peripherals {
-            pins.extend(pin.1.uses_pins());
+        for (_, peripheral) in &self.peripherals {
+            pins.extend(peripheral.uses_pins());
         }
 
         pins
@@ -162,20 +166,19 @@ impl Config {
             .collect()
     }
 
-    /// Проверка повторного использования [`ChosenPin`]
-    /// Возвращает ошибку, если один из пинов уже используется
+    /// Проверяет, что новые пины ещё не используются текущей конфигурацией.
     fn check_conflicts_pins(&self, new_pins: &[ChosenPin]) -> ConfigResult<()> {
-        let uses = self.all_uses_pins();
+        let used_pins = self.all_uses_pins();
         for pin in new_pins {
-            if uses.contains(pin) {
+            if used_pins.contains(pin) {
                 return Err(ConfigError::PinAlreadyInUse(*pin));
             }
         }
         Ok(())
     }
 
-    /// Проверка повторного использования сетевых параметров периферии.
-    fn check_conflicts_peripherals(&self, new_peripheral: &Peripheral) -> ConfigResult<()> {
+    /// Проверяет повторное использование параметров W5500.
+    fn check_conflicts_w5500(&self, new_peripheral: &Peripheral) -> ConfigResult<()> {
         for (_, configured_peripheral) in self.peripherals() {
             match (configured_peripheral, new_peripheral) {
                 (Peripheral::W5500(configured), Peripheral::W5500(new)) => {
@@ -215,7 +218,7 @@ impl Config {
         self.check_conflicts_pins(&[gpio_pin.pin.into()])?;
 
         let new_label = gpio_pin.label();
-        if self.gpio_pins.iter().any(|p| p.label() == new_label) {
+        if self.gpio_pins.iter().any(|pin| pin.label() == new_label) {
             return Err(ConfigError::LabelAlreadyInUse(new_label));
         }
 
@@ -224,7 +227,7 @@ impl Config {
     }
 
     pub fn add_spi_bus(&mut self, spi: SpiConfig) -> ConfigResult<()> {
-        if self.spi_buses.iter().any(|s| s.bus == spi.bus) {
+        if self.spi_buses.iter().any(|current| current.bus == spi.bus) {
             return Err(ConfigError::DuplicateSpiBus(spi.bus));
         }
 
@@ -243,155 +246,50 @@ impl Config {
         if self
             .peripherals
             .iter()
-            .any(|(_, configured_peripheral)| configured_peripheral.spi_bus() == spi_bus)
+            .any(|(_, configured)| configured.spi_bus() == spi_bus)
         {
             return Err(ConfigError::SpiBusAlreadyUsedByPeripheral(spi_bus));
         }
 
         peripheral.validate()?;
-        self.check_conflicts_peripherals(&peripheral)?;
+        self.check_conflicts_w5500(&peripheral)?;
         self.check_conflicts_pins(&peripheral.uses_pins())?;
 
-        let periph_id = PeripheralId(self.next_periph_id);
-        self.peripherals.push((periph_id, peripheral));
+        let peripheral_id = PeripheralId(self.next_periph_id);
+        self.peripherals.push((peripheral_id, peripheral));
         self.next_periph_id += 1;
-        Ok(periph_id)
+        Ok(peripheral_id)
     }
 
-    /// Удаляет gpio пин по его идентификатору.
+    /// Удаляет GPIO-пин по его идентификатору.
     pub fn remove_gpio_pin(&mut self, pin: &ChosenPin) -> Option<PinConfig> {
-        let pos = self.gpio_pins.iter().position(|p| *pin == p.pin.into())?;
+        let pos = self
+            .gpio_pins
+            .iter()
+            .position(|current| *pin == current.pin.into())?;
         Some(self.gpio_pins.remove(pos))
     }
 
-    /// Удаляет spi шину по [`ChosenSpiBus`].
-    /// Возвращает ошибку, если на эту шину завязана периферия.
+    /// Удаляет SPI-шину, если на неё не завязана периферия.
     pub fn remove_spi(&mut self, bus: &ChosenSpiBus) -> Result<Option<SpiConfig>, ConfigError> {
-        if self.peripherals.iter().any(|p| p.1.spi_bus() == *bus) {
+        if self
+            .peripherals
+            .iter()
+            .any(|(_, peripheral)| peripheral.spi_bus() == *bus)
+        {
             return Err(ConfigError::SpiBusInUse(*bus));
         }
 
-        let pos = self.spi_buses.iter().position(|s| &s.bus == bus);
-        Ok(pos.map(|i| self.spi_buses.remove(i)))
+        let pos = self.spi_buses.iter().position(|spi| &spi.bus == bus);
+        Ok(pos.map(|index| self.spi_buses.remove(index)))
     }
 
-    /// Удаляет переферию по [`PeripheralId`].
+    /// Удаляет периферию по [`PeripheralId`].
     pub fn remove_peripheral(&mut self, id: PeripheralId) -> Option<Peripheral> {
-        let pos = self.peripherals.iter().position(|(i, _)| *i == id)?;
+        let pos = self
+            .peripherals
+            .iter()
+            .position(|(current_id, _)| *current_id == id)?;
         Some(self.peripherals.remove(pos).1)
-    }
-}
-
-/// Конфигурация для одного пина из gpio платы микроконтроллера
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct PinConfig {
-    pub pin: ChosenPinWithMode,
-    pub label: Option<String>,
-}
-
-impl PinConfig {
-    pub fn label(&self) -> String {
-        self.label
-            .clone()
-            .unwrap_or_else(|| format!("p{}", self.pin.pin().variant_name().to_lowercase()))
-    }
-}
-
-/// Конфигурация периферии
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct SpiConfig {
-    pub bus: ChosenSpiBus,
-    pub frequency_mhz: u32,
-    pub mode: SpiMode,
-    pub sck: ChosenPin,
-    pub miso: Option<ChosenPin>,
-    pub mosi: Option<ChosenPin>,
-}
-
-impl SpiConfig {
-    pub fn new(
-        bus: ChosenSpiBus,
-        frequency_mhz: u32,
-        mode: SpiMode,
-        sck: ChosenPin,
-        miso: Option<ChosenPin>,
-        mosi: Option<ChosenPin>,
-    ) -> Result<Self, ConfigError> {
-        if let Some(m) = miso
-            && sck == m
-        {
-            return Err(ConfigError::PinAlreadyInUse(m));
-        }
-
-        if let Some(m) = mosi
-            && (sck == m || miso == Some(m))
-        {
-            return Err(ConfigError::PinAlreadyInUse(m));
-        }
-
-        Ok(Self {
-            bus,
-            frequency_mhz,
-            mode,
-            sck,
-            miso,
-            mosi,
-        })
-    }
-}
-
-impl UsesPins for SpiConfig {
-    fn uses_pins(&self) -> Vec<ChosenPin> {
-        let mut pins = vec![self.sck];
-
-        if let Some(miso) = self.miso {
-            pins.push(miso);
-        }
-        if let Some(mosi) = self.mosi {
-            pins.push(mosi);
-        }
-
-        pins
-    }
-}
-
-/// Конфигурация шины SPI
-#[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Default,
-    strum::FromRepr,
-    strum::VariantNames,
-    strum::IntoStaticStr,
-    Serialize,
-)]
-#[repr(u8)]
-pub enum SpiMode {
-    /// Polarity: IdleLow (CPOL=0)
-    /// Phase: CaptureOnFirstTransition (CPHA=0)
-    #[default]
-    Mode0,
-    /// Polarity: IdleLow (CPOL=0)
-    /// Phase: CaptureOnSecondTransition (CPHA=1)
-    Mode1,
-    /// Polarity: IdleHigh (CPOL=1)
-    /// Phase: CaptureOnFirstTransition (CPHA=0)
-    Mode2,
-    /// Polarity: IdleHigh (CPOL=1)
-    /// Phase: CaptureOnSecondTransition (CPHA=1)
-    Mode3,
-}
-
-impl SpiMode {
-    pub fn template_vars(&self) -> (&'static str, &'static str) {
-        match self {
-            Self::Mode0 => ("IdleLow", "CaptureOnFirstTransition"),
-            Self::Mode1 => ("IdleLow", "CaptureOnSecondTransition"),
-            Self::Mode2 => ("IdleHigh", "CaptureOnFirstTransition"),
-            Self::Mode3 => ("IdleHigh", "CaptureOnSecondTransition"),
-        }
     }
 }
