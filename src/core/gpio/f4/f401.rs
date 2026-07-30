@@ -1,5 +1,5 @@
-use strum::{EnumString, IntoStaticStr, VariantNames};
 use serde::Serialize;
+use strum::{EnumString, IntoStaticStr, VariantNames};
 
 /// Распиновка под STM32F401 (в частности под black pill)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, EnumString, VariantNames, IntoStaticStr, Serialize)]

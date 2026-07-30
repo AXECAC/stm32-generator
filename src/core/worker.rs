@@ -5,6 +5,8 @@ use std::path::PathBuf;
 
 use crate::core::generator::{context::TemplateContext, render, writer::create_project};
 
+const FAILED_SEND_ERR_MES: &str = "Worker не смог отправить прогресс (receiver отключен)";
+
 /// Сообщения, в GUI о процессе генерации проекта
 #[derive(Debug)]
 pub enum WorkerMessage {
@@ -23,7 +25,16 @@ pub fn start_generation(config: Config, output_dir: PathBuf) -> Receiver<WorkerM
     let (sender, receiver) = crossbeam_channel::unbounded();
 
     std::thread::spawn(move || {
-        let _ = sender.send(WorkerMessage::Progress {
+        macro_rules! send_or_return {
+            ($msg:expr) => {
+                if let Err(e) = sender.send($msg) {
+                    log::error!("{}: {}", FAILED_SEND_ERR_MES, e);
+                    return;
+                }
+            };
+        }
+
+        send_or_return!(WorkerMessage::Progress {
             percent: 10,
             status: "Сборка контекста шаблона...".to_string(),
         });
@@ -37,12 +48,12 @@ pub fn start_generation(config: Config, output_dir: PathBuf) -> Receiver<WorkerM
         let context = match TemplateContext::from_config(&config, project_name) {
             Ok(ctx) => ctx,
             Err(e) => {
-                let _ = sender.send(WorkerMessage::Error { message: e });
+                send_or_return!(WorkerMessage::Error { message: e });
                 return;
             }
         };
 
-        let _ = sender.send(WorkerMessage::Progress {
+        send_or_return!(WorkerMessage::Progress {
             percent: 50,
             status: "Рендеринг шаблонов Jinja...".to_string(),
         });
@@ -50,23 +61,23 @@ pub fn start_generation(config: Config, output_dir: PathBuf) -> Receiver<WorkerM
         let files = match render(&context) {
             Ok(f) => f,
             Err(e) => {
-                let _ = sender.send(WorkerMessage::Error { message: e });
+                send_or_return!(WorkerMessage::Error { message: e });
                 return;
             }
         };
 
-        let _ = sender.send(WorkerMessage::Progress {
+        send_or_return!(WorkerMessage::Progress {
             percent: 90,
             status: "Запись файлов на диск...".to_string(),
         });
 
         if let Err(e) = create_project(&output_dir, files) {
-            let _ = sender.send(WorkerMessage::Error { message: e });
+            send_or_return!(WorkerMessage::Error { message: e });
             return;
         }
 
         // Успешное завершение
-        let _ = sender.send(WorkerMessage::Done { output_dir });
+        send_or_return!(WorkerMessage::Done { output_dir });
     });
 
     receiver

@@ -1,111 +1,181 @@
-use eframe::egui;
-
-use crate::core::config::Config;
-use crate::gui::pages::{
-    Page,
-    start::StartState,
-    peripherals::PeripheralsState,
-    pins::PinsState,
-    spi::SpiState,
-    run::RunState,
+use adw::prelude::*;
+use relm4::{
+    Component, ComponentController, ComponentParts, ComponentSender, Controller, SimpleComponent,
+    adw, gtk,
 };
+use std::sync::{Arc, RwLock};
 
-pub struct GeneratorApp {
-    page: Page,
-    config: Config,
-    output_path: String,
-    
-    start_state: StartState,
-    peripherals_state: PeripheralsState,
-    pins_state: PinsState,
-    spi_state: SpiState,
-    run_state: RunState,
+use crate::core::board::TargetBoard;
+use crate::core::config::Config;
+use crate::core::gpio::TargetMcu;
+
+use crate::gui::pages::peripherals::{PeripheralsPageInput, PeripheralsPageModel};
+use crate::gui::pages::pins::{PinsPageInput, PinsPageModel};
+use crate::gui::pages::run::{RunPageInput, RunPageModel};
+use crate::gui::pages::spi::{SpiPageInput, SpiPageModel};
+use crate::gui::pages::start::{StartPageInput, StartPageModel};
+
+pub struct AppModel {
+    /// Удерживает Arc живым на всё время жизни приложения.
+    /// Без этого поля счётчик ссылок мог бы упасть до нуля после init().
+    _config: Arc<RwLock<Config>>,
+
+    // Контроллеры для страниц
+    start_page: Controller<StartPageModel>,
+    pins_page: Controller<PinsPageModel>,
+    spi_page: Controller<SpiPageModel>,
+    peripherals_page: Controller<PeripheralsPageModel>,
+    run_page: Controller<RunPageModel>,
 }
 
-impl Default for GeneratorApp {
-    fn default() -> Self {
-        Self {
-            page: Page::Start,
-            config: Config::new(),
-            output_path: "./output/".to_string(),
-            
-            start_state: StartState::default(),
-            peripherals_state: PeripheralsState::default(),
-            pins_state: PinsState::default(),
-            spi_state: SpiState::default(),
-            run_state: RunState::default(),
-        }
-    }
+#[derive(Debug)]
+pub enum AppInput {
+    TabSwitched(String),
 }
 
-impl GeneratorApp {
-    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        egui_extras::install_image_loaders(&cc.egui_ctx);
-        Self::default()
-    }
+#[relm4::component(pub)]
+impl SimpleComponent for AppModel {
+    type Init = ();
+    type Input = AppInput;
+    type Output = ();
 
-    fn render_top_bar(&mut self, ui: &mut egui::Ui) {
-        ui.add_space(10.0);
-        let text_size = 18.0;
-        ui.columns(5, |cols| {
-            cols[0].vertical_centered_justified(|ui| {
-                if ui.selectable_label(self.page == Page::Start, egui::RichText::new("Начало").size(text_size)).clicked() {
-                    self.page = Page::Start;
-                }
-            });
-            cols[1].vertical_centered_justified(|ui| {
-                if ui.selectable_label(self.page == Page::Pins, egui::RichText::new("1. Пины GPIO").size(text_size)).clicked() {
-                    self.page = Page::Pins;
-                }
-            });
-            cols[2].vertical_centered_justified(|ui| {
-                if ui.selectable_label(self.page == Page::Spi, egui::RichText::new("2. Шины SPI").size(text_size)).clicked() {
-                    self.page = Page::Spi;
-                }
-            });
-            cols[3].vertical_centered_justified(|ui| {
-                if ui.selectable_label(self.page == Page::Peripherals, egui::RichText::new("3. Периферия").size(text_size)).clicked() {
-                    self.page = Page::Peripherals;
-                }
-            });
-            cols[4].vertical_centered_justified(|ui| {
-                if ui.selectable_label(self.page == Page::Run, egui::RichText::new("4. Генерация").size(text_size)).clicked() {
-                    self.page = Page::Run;
-                }
-            });
-        });
-        ui.add_space(10.0);
-        ui.separator();
-    }
-}
+    view! {
+        adw::ApplicationWindow {
+            set_default_width: 1100,
+            set_default_height: 800,
 
-impl eframe::App for GeneratorApp {
-    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        self.render_top_bar(ui);
-        
-        egui::ScrollArea::vertical().show(ui, |ui: &mut egui::Ui| {
-            match self.page {
-                Page::Start => {
-                    self.start_state.render(ui, &mut self.page);
-                }
-                Page::Pins => {
-                    self.pins_state.render(ui, &mut self.config, &mut self.page);
-                }
-                Page::Spi => {
-                    self.spi_state.render(ui, &mut self.config, &mut self.page);
-                }
-                Page::Peripherals => {
-                    self.peripherals_state.render(ui, &mut self.config, &mut self.page);
-                }
-                Page::Run => {
-                    self.run_state.render(ui, &self.config, &mut self.output_path);
+            #[wrap(Some)]
+            set_content = &gtk::Box {
+                set_orientation: gtk::Orientation::Vertical,
+
+                append = &adw::HeaderBar {
+                    #[wrap(Some)]
+                    set_title_widget = &adw::ViewSwitcherTitle {
+                        set_stack: Some(&view_stack),
+                        set_title: "STM32 Generator",
+                    }
+                },
+
+                append = &gtk::Box {
+                    set_orientation: gtk::Orientation::Vertical,
+                    set_hexpand: true,
+                    set_vexpand: true,
+
+                    #[name = "view_stack"]
+                    append = &adw::ViewStack {
+                        set_hexpand: true,
+                        set_vexpand: true,
+                        connect_visible_child_name_notify[sender] => move |stack| {
+                            if let Some(name) = stack.visible_child_name() {
+                                sender.input(AppInput::TabSwitched(name.to_string()));
+                            }
+                        },
+
+                        add_titled[Some("start"), "Начало"] = &gtk::Box {
+                            #[local_ref]
+                            start_widget -> adw::StatusPage {}
+                        },
+
+                        add_titled[Some("pins"), "Пины"] = &gtk::Box {
+                            #[local_ref]
+                            pins_widget -> gtk::Paned {}
+                        },
+
+                        add_titled[Some("spi"), "SPI"] = &gtk::Box {
+                            #[local_ref]
+                            spi_widget -> gtk::Box {}
+                        },
+
+                        add_titled[Some("peripherals"), "Периферия"] = &gtk::Box {
+                            #[local_ref]
+                            periph_widget -> gtk::Box {}
+                        },
+
+                        add_titled[Some("run"), "Генерация"] = &gtk::Box {
+                            #[local_ref]
+                            run_widget -> gtk::Box {}
+                        },
+                    }
                 }
             }
-        });
+        }
+    }
 
-        // We only need to request repaint if the run state is actively polling
-        if self.run_state.receiver.is_some() {
-            ui.ctx().request_repaint();
+    fn init(
+        _init: Self::Init,
+        root: Self::Root,
+        sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
+        let config = Arc::new(RwLock::new(Config::new(TargetBoard::BlackPill(
+            TargetMcu::StmF401,
+        ))));
+
+        let start_page = StartPageModel::builder().launch(config.clone()).detach();
+        let pins_page = PinsPageModel::builder().launch(config.clone()).detach();
+        let spi_page = SpiPageModel::builder().launch(config.clone()).detach();
+        let peripherals_page = PeripheralsPageModel::builder()
+            .launch(config.clone())
+            .detach();
+        let run_page = RunPageModel::builder().launch(config.clone()).detach();
+
+        let model = AppModel {
+            _config: config,
+            start_page,
+            pins_page,
+            spi_page,
+            peripherals_page,
+            run_page,
+        };
+
+        let start_widget = model.start_page.widget();
+        let pins_widget = model.pins_page.widget();
+        let spi_widget = model.spi_page.widget();
+        let periph_widget = model.peripherals_page.widget();
+        let run_widget = model.run_page.widget();
+
+        let widgets = view_output!();
+
+        ComponentParts { model, widgets }
+    }
+
+    fn update(&mut self, message: Self::Input, _sender: ComponentSender<Self>) {
+        match message {
+            AppInput::TabSwitched(name) => {
+                let failed_message = "Не удалось отправить UpdateConfig в";
+                match name.as_str() {
+                    "start" => {
+                        if let Err(e) = self.start_page.sender().send(StartPageInput::UpdateConfig)
+                        {
+                            log::error!("{} StartPageModel: {:?}", failed_message, e);
+                        }
+                    }
+                    "pins" => {
+                        if let Err(e) = self.pins_page.sender().send(PinsPageInput::UpdateConfig) {
+                            log::error!("{} PinsPageModel: {:?}", failed_message, e);
+                        }
+                    }
+                    "spi" => {
+                        if let Err(e) = self.spi_page.sender().send(SpiPageInput::UpdateConfig) {
+                            log::error!("{} SpiPageModel: {:?}", failed_message, e);
+                        }
+                    }
+                    "peripherals" => {
+                        if let Err(e) = self
+                            .peripherals_page
+                            .sender()
+                            .send(PeripheralsPageInput::UpdateConfig)
+                        {
+                            log::error!("{} PeripheralsPageModel: {:?}", failed_message, e);
+                        }
+                    }
+                    "run" => {
+                        if let Err(e) = self.run_page.sender().send(RunPageInput::UpdateConfig) {
+                            log::error!("{} RunPageModel: {:?}", failed_message, e);
+                        }
+                    }
+                    _ => {}
+                }
+            }
         }
     }
 }

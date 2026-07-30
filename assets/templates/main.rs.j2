@@ -10,7 +10,7 @@ use cortex_m_rt::entry;
 {% include "blocks/mcu/stm32f4/imports.rs.j2" %}
 {%- endif %}
 
-{% if w5500_peripherals | length > 0 -%}
+{% if features.uses_w5500 -%}
 // Импорты для модуля W5500
 {% include "blocks/peripherals/W5500/imports.rs.j2" %}
 {%- endif %}
@@ -28,18 +28,21 @@ fn main() -> ! {
     {%- endif %}
 
     // 3. Инициализация периферии
-    {% for peripheral in w5500_peripherals -%}
+    {% for configured_peripheral in peripherals -%}
+    {% if configured_peripheral.kind == "w5500" -%}
+    {% set peripheral = configured_peripheral.w5500 %}
     {% include "blocks/peripherals/W5500/init.rs.j2" %}
+    {%- endif %}
     {%- endfor %}
 
     loop {
         // 4. Основной цикл (опрос периферии, обработка прерываний стейт-машины)
-        {% if w5500_peripherals | length == 1 -%}
-        {% set peripheral = w5500_peripherals[0] %}
+        {% if peripherals | length == 1 and peripherals[0].kind == "w5500" -%}
+        {% set peripheral = peripherals[0].w5500 %}
         {% include "blocks/peripherals/W5500/logic_single.rs.j2" %}
-        {%- elif w5500_peripherals | length == 2 -%}
-        {% set peripheral1 = w5500_peripherals[0] %}
-        {% set peripheral2 = w5500_peripherals[1] %}
+        {%- elif peripherals | length == 2 and peripherals[0].kind == "w5500" and peripherals[1].kind == "w5500" -%}
+        {% set peripheral1 = peripherals[0].w5500 %}
+        {% set peripheral2 = peripherals[1].w5500 %}
         {% include "blocks/peripherals/W5500/logic_bridge.rs.j2" %}
         {%- endif %}
     }

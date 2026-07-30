@@ -14,10 +14,12 @@ embedded-hal = "1.0.0"
 # Настроено под конкретное семейство MCU
 {{ mcu_family }}xx-hal = { version = "{{ hal_version }}", features = ["{{ hal_feature }}"]}
 
-{% if w5500_peripherals | length > 0 %}
+{% if features.uses_w5500 %}
 # Зависимости для W5500
 w5500-ll = { version = "0.13.0", features = ["eh1"] }
 w5500-hl = { version = "0.12.0", features = ["eh1"] }
+{% endif %}
+{% if features.uses_embedded_hal_bus %}
 embedded-hal-bus = "0.3.0"
 {% endif %}
 

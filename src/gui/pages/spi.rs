@@ -1,244 +1,279 @@
-use eframe::egui;
-use std::str::FromStr;
-use strum::VariantNames;
+use std::sync::{Arc, RwLock};
 
-use crate::core::{
-    config::{Config, SpiConfig, SpiMode},
-    gpio::{ChosenPin, f4::f401::{StmF401Pin, StmF401SpiBus}, ChosenSpiBus},
+use adw::prelude::*;
+use relm4::factory::FactoryVecDeque;
+use relm4::{
+    Component, ComponentController, ComponentParts, ComponentSender, Controller, RelmWidgetExt,
+    SimpleComponent, adw, gtk,
 };
-use crate::gui::pages::Page;
 
-pub struct SpiState {
-    pub spi_bus_idx: usize,
-    pub sck_pin_idx: usize,
-    pub miso_pin_idx: usize,
-    pub mosi_pin_idx: usize,
-    pub use_miso: bool,
-    pub use_mosi: bool,
-    pub frequency_mhz: String,
-    pub mode_idx: usize,
-    pub spi_error: Option<String>,
+use crate::core::board::PinType;
+use crate::core::config::{Config, SpiConfig};
+use crate::core::errors::ConfigError;
+use crate::core::gpio::{ChosenPin, ChosenSpiBus};
+use crate::gui::components::forms::spi::{SpiFormInput, SpiFormModel, SpiFormOutput};
+use crate::gui::components::spi_bus_row::{SpiBusRowModel, SpiBusRowOutput};
+
+/// Состояние factory-списка уже настроенных SPI-шин.
+struct ConfiguredSpiBusesList {
+    /// Кэш текущего списка SPI-шин для защиты от лишнего пересоздания factory-строк.
+    cache: Vec<SpiConfig>,
+    /// Factory-модель строк со сконфигурированными SPI-шинами.
+    factory: FactoryVecDeque<SpiBusRowModel>,
 }
 
-impl Default for SpiState {
-    fn default() -> Self {
+impl ConfiguredSpiBusesList {
+    /// Создаёт состояние списка на базе factory-модели.
+    fn new(factory: FactoryVecDeque<SpiBusRowModel>) -> Self {
         Self {
-            spi_bus_idx: 0,
-            sck_pin_idx: 0,
-            miso_pin_idx: 0,
-            mosi_pin_idx: 0,
-            use_miso: true,
-            use_mosi: true,
-            frequency_mhz: "10".to_string(),
-            mode_idx: 0,
-            spi_error: None,
+            cache: Vec::new(),
+            factory,
+        }
+    }
+
+    /// Синхронизирует factory-список сконфигурированных SPI-шин.
+    fn refresh(&mut self, spis: Vec<SpiConfig>) {
+        if self.cache == spis {
+            return;
+        }
+
+        self.cache = spis.clone();
+
+        let mut guard = self.factory.guard();
+        guard.clear();
+        for spi in spis {
+            guard.push_back(spi);
         }
     }
 }
 
-impl SpiState {
-    pub fn render(&mut self, ui: &mut egui::Ui, config: &mut Config, page: &mut Page) {
-        ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
-            ui.add_space(20.0);
-            ui.heading(egui::RichText::new("Конфигурация шин SPI").size(20.0));
-            ui.add_space(5.0);
-            ui.label("Настройте шины SPI перед добавлением периферии (например, W5500).");
-            ui.add_space(20.0);
+/// Модель страницы настройки SPI-шин.
+///
+/// Страница хранит глобальный [`Config`], дочернюю форму добавления SPI и
+/// factory-список уже настроенных шин. Локальное состояние полей формы живёт в
+/// [`SpiFormModel`].
+pub struct SpiPageModel {
+    /// Глобальная конфигурация приложения.
+    pub(crate) config: Arc<RwLock<Config>>,
+    /// Дочерняя форма добавления SPI-шины.
+    form: Controller<SpiFormModel>,
+    /// Список уже сконфигурированных SPI-шин.
+    configured_buses: ConfiguredSpiBusesList,
+}
 
-            ui.allocate_ui_with_layout(egui::vec2(500.0, ui.available_height()), egui::Layout::top_down(egui::Align::Min), |ui| {
-                ui.group(|ui| {
-                    ui.label("Добавить новую шину SPI");
-                    
-                    let spi_buses = StmF401SpiBus::VARIANTS;
-                    let all_pins = StmF401Pin::VARIANTS;
-                    let used_pins = config.all_uses_pins();
+/// Входящие сообщения страницы SPI.
+#[derive(Debug)]
+pub enum SpiPageInput {
+    /// Вкладка стала активной; нужно перечитать свежий [`Config`].
+    UpdateConfig,
+    /// Дочерняя форма собрала валидный [`SpiConfig`].
+    AddBus(SpiConfig),
+    /// Пользователь запросил удаление сконфигурированной SPI-шины.
+    RemoveBus(ChosenSpiBus),
+}
 
-                    let available_pins: Vec<_> = all_pins.iter().enumerate().filter(|(_, name)| {
-                        if let Ok(pin_val) = StmF401Pin::from_str(name) {
-                            !used_pins.contains(&ChosenPin::StmF401(pin_val))
-                        } else {
-                            false
-                        }
-                    }).collect();
+#[relm4::component(pub)]
+impl SimpleComponent for SpiPageModel {
+    /// Данные, необходимые для инициализации страницы.
+    type Init = Arc<RwLock<Config>>;
+    /// Сообщения, которые страница принимает от дочерних компонентов.
+    type Input = SpiPageInput;
+    /// Страница не отправляет события наружу: все изменения пишутся прямо в общий [`Config`].
+    type Output = ();
 
-                    if available_pins.is_empty() {
-                        ui.label("Нет доступных пинов.");
-                    } else {
-                        egui::Grid::new("spi_form").show(ui, |ui| {
-                            ui.label("Шина:");
-                            egui::ComboBox::from_id_salt("spi_bus")
-                                .selected_text(spi_buses[self.spi_bus_idx])
-                                .show_ui(ui, |ui: &mut egui::Ui| {
-                                    for (i, name) in spi_buses.iter().enumerate() {
-                                        ui.selectable_value(&mut self.spi_bus_idx, i, *name);
-                                    }
-                                });
-                            ui.end_row();
+    view! {
+        gtk::Box {
+            set_orientation: gtk::Orientation::Vertical,
+            set_hexpand: true,
+            set_vexpand: true,
 
-                            ui.label("Частота (МГц):");
-                            ui.text_edit_singleline(&mut self.frequency_mhz);
-                            ui.end_row();
+            gtk::ScrolledWindow {
+                set_hexpand: true,
+                set_vexpand: true,
+                set_policy: (gtk::PolicyType::Automatic, gtk::PolicyType::Automatic),
 
-                            ui.label("Режим SPI:");
-                            let modes = ["Режим 0", "Режим 1", "Режим 2", "Режим 3"];
-                            egui::ComboBox::from_id_salt("spi_mode")
-                                .selected_text(modes[self.mode_idx])
-                                .show_ui(ui, |ui: &mut egui::Ui| {
-                                    for (i, name) in modes.iter().enumerate() {
-                                        ui.selectable_value(&mut self.mode_idx, i, *name);
-                                    }
-                                });
-                            ui.end_row();
+                #[wrap(Some)]
+                set_child = &gtk::Box {
+                    set_orientation: gtk::Orientation::Vertical,
+                    set_spacing: 24,
+                    set_margin_all: 24,
 
-                            let mut pin_combo = |ui: &mut egui::Ui, id: &str, label: &str, selected: &mut usize| {
-                                ui.label(label);
-                                if available_pins.iter().find(|(orig_i, _)| *orig_i == *selected).is_none() {
-                                    *selected = available_pins[0].0;
-                                }
-                                let selected_name = all_pins.get(*selected).unwrap_or(&"");
-                                egui::ComboBox::from_id_salt(id)
-                                    .selected_text(*selected_name)
-                                    .show_ui(ui, |ui: &mut egui::Ui| {
-                                        for (orig_i, name) in &available_pins {
-                                            ui.selectable_value(selected, *orig_i, **name);
-                                        }
-                                    });
-                            };
+                    #[local_ref]
+                    form_widget -> gtk::Box {},
 
-                            pin_combo(ui, "sck_pin", "Пин SCK:", &mut self.sck_pin_idx);
-                            ui.end_row();
-
-                            ui.horizontal(|ui| {
-                                ui.label("Пин MISO:");
-                                ui.checkbox(&mut self.use_miso, "Включить");
-                            });
-                            if self.use_miso {
-                                pin_combo(ui, "miso_pin", "", &mut self.miso_pin_idx);
-                            }
-                            ui.end_row();
-
-                            ui.horizontal(|ui| {
-                                ui.label("Пин MOSI:");
-                                ui.checkbox(&mut self.use_mosi, "Включить");
-                            });
-                            if self.use_mosi {
-                                pin_combo(ui, "mosi_pin", "", &mut self.mosi_pin_idx);
-                            }
-                            ui.end_row();
-                        });
-
-                        if let Some(err) = &self.spi_error {
-                            ui.colored_label(egui::Color32::RED, err);
-                        }
-
-                        if ui.button("Добавить шину SPI").clicked() {
-                            self.spi_error = None;
-                            
-                            let bus_name = spi_buses[self.spi_bus_idx];
-                            let bus_val = StmF401SpiBus::from_str(bus_name).unwrap();
-
-                            if let Ok(freq) = self.frequency_mhz.parse::<u32>() {
-                                let mode = match self.mode_idx {
-                                    0 => SpiMode::Mode0,
-                                    1 => SpiMode::Mode1,
-                                    2 => SpiMode::Mode2,
-                                    3 => SpiMode::Mode3,
-                                    _ => SpiMode::Mode0,
-                                };
-
-                                let sck_name = all_pins[self.sck_pin_idx];
-                                let sck_val = StmF401Pin::from_str(sck_name).unwrap();
-
-                                let miso = if self.use_miso {
-                                    let name = all_pins[self.miso_pin_idx];
-                                    Some(ChosenPin::StmF401(StmF401Pin::from_str(name).unwrap()))
-                                } else {
-                                    None
-                                };
-
-                                let mosi = if self.use_mosi {
-                                    let name = all_pins[self.mosi_pin_idx];
-                                    Some(ChosenPin::StmF401(StmF401Pin::from_str(name).unwrap()))
-                                } else {
-                                    None
-                                };
-
-                                let spi_cfg = SpiConfig {
-                                    bus: ChosenSpiBus::StmF401(bus_val),
-                                    frequency_mhz: freq,
-                                    mode,
-                                    sck: ChosenPin::StmF401(sck_val),
-                                    miso,
-                                    mosi,
-                                };
-
-                                if let Err(e) = config.add_spi_bus(spi_cfg) {
-                                    self.spi_error = Some(format!("{:?}", e));
-                                }
-                            } else {
-                                self.spi_error = Some("Неверная частота".to_string());
-                            }
-                        }
+                    #[local_ref]
+                    configured_buses_group -> adw::PreferencesGroup {
+                        set_title: "Сконфигурированные шины",
+                        set_description: Some("Удалить можно только шины, которые не используются периферией."),
                     }
-                });
+                }
+            }
+        }
+    }
 
-                ui.separator();
-                ui.heading("Сконфигурированные шины SPI");
-                ui.add_space(10.0);
-                
-                let mut to_remove = None;
-                for spi_config in config.spi() {
-                    egui::Frame::group(ui.style())
-                        .fill(egui::Color32::from_gray(35))
-                        .show(ui, |ui| {
-                            ui.horizontal(|ui| {
-                                ui.label(egui::RichText::new(format!("{:?}", spi_config.bus)).strong().size(16.0));
-                                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                    if ui.button("Удалить").clicked() {
-                                        to_remove = Some(spi_config.bus.clone());
-                                    }
-                                });
-                            });
-                            
-                            ui.separator();
-                            
-                            ui.horizontal(|ui| {
-                                ui.label(format!("Частота: {} МГц", spi_config.frequency_mhz));
-                                ui.label("|");
-                                ui.label(format!("Режим: {:?}", spi_config.mode));
-                            });
-                            
-                            ui.add_space(3.0);
-                            
-                            ui.horizontal(|ui| {
-                                ui.label(format!("SCK: {:?}", spi_config.sck));
-                                
-                                ui.label("|");
-                                if let Some(miso) = &spi_config.miso {
-                                    ui.label(format!("MISO: {:?}", miso));
-                                } else {
-                                    ui.label("MISO: Выкл.");
-                                }
-                                
-                                ui.label("|");
-                                if let Some(mosi) = &spi_config.mosi {
-                                    ui.label(format!("MOSI: {:?}", mosi));
-                                } else {
-                                    ui.label("MOSI: Выкл.");
-                                }
-                            });
-                        });
-                    ui.add_space(5.0);
-                }
-                if let Some(bus) = to_remove {
-                    let _ = config.remove_spi(&bus);
-                }
-
-                ui.add_space(20.0);
-                if ui.button("Далее: Периферия ->").clicked() {
-                    *page = Page::Peripherals;
-                }
+    fn init(
+        init: Self::Init,
+        root: Self::Root,
+        sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
+        let form = SpiFormModel::builder()
+            .launch(())
+            .forward(sender.input_sender(), |output| match output {
+                SpiFormOutput::Submit(spi) => SpiPageInput::AddBus(spi),
             });
+
+        let configured_buses = FactoryVecDeque::builder()
+            .launch(adw::PreferencesGroup::default())
+            .forward(sender.input_sender(), |output| match output {
+                SpiBusRowOutput::Remove(bus) => SpiPageInput::RemoveBus(bus),
+            });
+
+        let mut model = SpiPageModel {
+            config: init,
+            form,
+            configured_buses: ConfiguredSpiBusesList::new(configured_buses),
+        };
+
+        model.refresh_from_config();
+        model.reset_form_after_change();
+
+        let form_widget = model.form.widget();
+        let configured_buses_group = model.configured_buses.factory.widget();
+        let widgets = view_output!();
+        ComponentParts { model, widgets }
+    }
+
+    /// Обрабатывает входящие сообщения страницы.
+    fn update(&mut self, message: Self::Input, _sender: ComponentSender<Self>) {
+        match message {
+            SpiPageInput::UpdateConfig => {
+                self.send_form_input(SpiFormInput::ClearError);
+                self.refresh_from_config();
+            }
+            SpiPageInput::AddBus(spi) => self.add_bus(spi),
+            SpiPageInput::RemoveBus(bus) => self.remove_bus(bus),
+        }
+    }
+}
+
+impl SpiPageModel {
+    /// Перечитывает глобальный [`Config`] и синхронизирует локальные списки страницы.
+    fn refresh_from_config(&mut self) {
+        let (available_buses, available_pins, configured_spis) = {
+            let config = self.config.read().unwrap();
+
+            let configured_buses = config
+                .spi()
+                .iter()
+                .map(|spi| spi.bus)
+                .collect::<Vec<ChosenSpiBus>>();
+            let available_buses = config
+                .board
+                .mcu()
+                .all_spi_buses()
+                .into_iter()
+                .filter(|bus| !configured_buses.contains(bus))
+                .collect::<Vec<_>>();
+
+            let used_pins = config.all_uses_pins();
+            let available_pins = config
+                .board
+                .build_pins()
+                .into_iter()
+                .filter_map(|pin| match pin.pin_type {
+                    PinType::Gpio(chosen_pin) if !used_pins.contains(&chosen_pin) => {
+                        Some(chosen_pin)
+                    }
+                    _ => None,
+                })
+                .collect::<Vec<ChosenPin>>();
+
+            (available_buses, available_pins, config.spi().to_vec())
+        };
+
+        self.send_form_input(SpiFormInput::UpdateOptions {
+            buses: available_buses,
+            pins: available_pins,
         });
+        self.configured_buses.refresh(configured_spis);
+    }
+
+    /// Добавляет [`SpiConfig`] в глобальный [`Config`].
+    fn add_bus(&mut self, spi: SpiConfig) {
+        let add_result = {
+            let mut config = self.config.write().unwrap();
+            config.add_spi_bus(spi.clone())
+        };
+
+        if let Err(e) = add_result {
+            self.set_form_error(e.to_string());
+            return;
+        }
+
+        log::info!(
+            "SPI-шина {} успешно добавлена: frequency_mhz={}, mode={:?}, sck={}, miso={:?}, mosi={:?}",
+            spi.bus.variant_name(),
+            spi.frequency_mhz,
+            spi.mode,
+            spi.sck.variant_name(),
+            spi.miso.map(|pin| pin.variant_name()),
+            spi.mosi.map(|pin| pin.variant_name()),
+        );
+        self.send_form_input(SpiFormInput::ClearError);
+        self.refresh_from_config();
+        self.reset_form_after_change();
+    }
+
+    /// Удаляет SPI-шину из глобального [`Config`].
+    fn remove_bus(&mut self, bus: ChosenSpiBus) {
+        let remove_result = {
+            let mut config = self.config.write().unwrap();
+            config.remove_spi(&bus)
+        };
+
+        match remove_result {
+            Ok(Some(_)) => {}
+            Ok(None) => {
+                self.set_form_error(format!(
+                    "SPI-шина {} не найдена в конфигурации",
+                    bus.variant_name()
+                ));
+                return;
+            }
+            Err(ConfigError::SpiBusInUse(_)) => {
+                self.set_form_error(
+                    "Шина используется периферией. Сначала удалите связанную периферию.",
+                );
+                return;
+            }
+            Err(e) => {
+                self.set_form_error(e.to_string());
+                return;
+            }
+        }
+
+        log::info!("SPI-шина {} успешно удалена", bus.variant_name());
+        self.send_form_input(SpiFormInput::ClearError);
+        self.refresh_from_config();
+        self.reset_form_after_change();
+    }
+
+    /// Сбрасывает форму добавления SPI в безопасные значения.
+    fn reset_form_after_change(&self) {
+        self.send_form_input(SpiFormInput::ResetAfterChange);
+    }
+
+    /// Передаёт сообщение дочерней форме SPI.
+    fn send_form_input(&self, input: SpiFormInput) {
+        if let Err(e) = self.form.sender().send(input) {
+            log::error!("Не удалось отправить сообщение в SpiFormModel: {:?}", e);
+        }
+    }
+
+    /// Передаёт ошибку в форму SPI и пишет её в лог.
+    fn set_form_error(&self, message: impl Into<String>) {
+        let message = message.into();
+        log::error!("Ошибка настройки SPI: {}", message);
+        self.send_form_input(SpiFormInput::SetError(message));
     }
 }
