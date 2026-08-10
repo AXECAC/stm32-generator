@@ -147,6 +147,21 @@ impl PinsPageModel {
 
         let config = self.config.read().unwrap();
         self.board_pins = config.board.build_pins();
+
+        // Обновляем название чипа на холсте при смене платы
+        if let Err(e) = self
+            .chip_canvas
+            .sender()
+            .send(ChipCanvasInput::UpdateChipLabel(
+                config.board.chip_label(),
+            ))
+        {
+            log::error!(
+                "Не удалось отправить UpdateChipLabel в ChipCanvas: {:?}",
+                e
+            );
+        }
+
         self.update_canvas_pins(&config);
         self.update_locked_canvas_pins(&config);
 

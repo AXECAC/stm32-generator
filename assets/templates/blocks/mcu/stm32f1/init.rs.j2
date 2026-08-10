@@ -1,0 +1,15 @@
+    // Обобщенная низкоуровневая периферия
+    let cp = cortex_m::Peripherals::take().unwrap();
+    // Периферия stm32f1
+    let dp = pac::Peripherals::take().unwrap();
+
+    // Заморозка конфигурации RCC (Reset and Clock Control)
+    let mut rcc = dp.RCC.constrain();
+    let mut flash = dp.FLASH.constrain();
+    let clocks = rcc.cfgr.freeze(&mut flash.acr);
+
+    // Инициализация задержек
+    let mut delay = Delay::new(cp.SYST, clocks.sysclk().raw());
+
+    // AFIO (Alternate Function I/O) для ремаппинга пинов
+    let mut afio = dp.AFIO.constrain();

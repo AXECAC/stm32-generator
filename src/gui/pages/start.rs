@@ -88,7 +88,10 @@ impl SimpleComponent for StartPageModel {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let board_items = vec![TargetBoard::BlackPill(TargetMcu::StmF401)];
+        let board_items = vec![
+            TargetBoard::BlackPill(TargetMcu::StmF401),
+            TargetBoard::BluePill(TargetMcu::StmF103),
+        ];
         let board_labels = board_items
             .iter()
             .map(TargetBoard::name)

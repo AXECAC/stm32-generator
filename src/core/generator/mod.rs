@@ -27,13 +27,21 @@ fn build_environment<'a>() -> Result<Environment<'a>, GeneratorError> {
     env.add_template(".gitignore.j2", templates::GITIGNORE)?;
     env.add_template("build.rs.j2", templates::BUILD_RS)?;
 
-    // Блоки MCU
+    // Блоки MCU (STM32F4)
     env.add_template(
         "blocks/mcu/stm32f4/imports.rs.j2",
         templates::MCU_STM32F4_IMPORTS,
     )?;
     env.add_template("blocks/mcu/stm32f4/init.rs.j2", templates::MCU_STM32F4_INIT)?;
     env.add_template("blocks/mcu/stm32f4/gpio.rs.j2", templates::MCU_STM32F4_GPIO)?;
+
+    // Блоки MCU (STM32F1)
+    env.add_template(
+        "blocks/mcu/stm32f1/imports.rs.j2",
+        templates::MCU_STM32F1_IMPORTS,
+    )?;
+    env.add_template("blocks/mcu/stm32f1/init.rs.j2", templates::MCU_STM32F1_INIT)?;
+    env.add_template("blocks/mcu/stm32f1/gpio.rs.j2", templates::MCU_STM32F1_GPIO)?;
 
     // Блоки Периферии (W5500)
     env.add_template(

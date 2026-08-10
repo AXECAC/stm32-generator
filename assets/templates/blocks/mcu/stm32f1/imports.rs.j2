@@ -1,0 +1,8 @@
+use cortex_m::delay::Delay;
+use stm32f1xx_hal::{
+    pac,
+    prelude::*,
+{%- if spis | length > 0 %}
+    spi::{Mode, Phase, Polarity, Spi},
+{%- endif %}
+};

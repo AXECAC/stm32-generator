@@ -1,4 +1,5 @@
 use serde::Serialize;
+pub mod f1;
 pub mod f4;
 
 /// Предоставляет абстракцию для графического интерфейса над специфичными для МК режимами пинов.
@@ -209,5 +210,13 @@ define_mcus! {
         family: "stm32f4",
         hal_version: "0.23.0",
         feature: "stm32f401",
+    },
+    StmF103 {
+        pin_type: crate::core::gpio::f1::f103::StmF103Pin,
+        mode_type: crate::core::gpio::f1::StmF1PinMode,
+        spi_bus_type: crate::core::gpio::f1::f103::StmF103SpiBus,
+        family: "stm32f1",
+        hal_version: "0.11.0",
+        feature: "stm32f103",
     },
 }

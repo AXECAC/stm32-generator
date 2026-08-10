@@ -1,6 +1,6 @@
 use crate::core::config::Config;
 use crate::core::errors::GeneratorError;
-use crate::core::gpio::{ChosenPin, ChosenSpiBus};
+use crate::core::gpio::{ChosenPin, TargetMcu};
 use crate::core::peripherals::Peripheral;
 use crate::core::peripherals::ethernet::w5500::{SocketMode, W5500Config};
 use serde::Serialize;
@@ -12,6 +12,14 @@ pub struct TemplateContext {
     pub mcu_family: String,
     pub hal_version: String,
     pub hal_feature: String,
+    /// Compilation target triple (e.g. "thumbv7em-none-eabi", "thumbv7m-none-eabi")
+    pub target: String,
+    /// Chip name for probe-rs (e.g. "STM32F401CCU6", "STM32F103C8T6")
+    pub chip: String,
+    pub flash_origin: String,
+    pub flash_length: String,
+    pub ram_origin: String,
+    pub ram_length: String,
     pub used_ports: Vec<String>,
     pub gpio_pins: Vec<GpioPinCtx>,
     pub spis: Vec<SpiCtx>,
@@ -46,12 +54,17 @@ pub struct GpioPinCtx {
     pub method: String,
     pub is_output: bool,
     pub speed: Option<String>,
+    /// Регистр конфигурации для STM32F1: "crl" (пины 0-7) или "crh" (пины 8-15).
+    /// Для STM32F4 данное поле не используется шаблонами, но заполняется для единообразия.
+    pub cr_reg: String,
 }
 
 #[derive(Clone, Serialize)]
 pub struct PinCtx {
     pub port: String,
     pub pin_num: String,
+    /// Регистр конфигурации для STM32F1: "crl" (пины 0-7) или "crh" (пины 8-15).
+    pub cr_reg: String,
 }
 
 impl PinCtx {
@@ -60,9 +73,17 @@ impl PinCtx {
     }
 
     fn from_str(s: &'static str) -> Self {
+        let pin_num = s[1..].to_string();
+        let pin_number: u32 = pin_num.parse().unwrap_or(0);
+        let cr_reg = if pin_number >= 8 {
+            "crh".to_string()
+        } else {
+            "crl".to_string()
+        };
         Self {
             port: s[..1].to_lowercase(),
-            pin_num: s[1..].to_string(),
+            pin_num,
+            cr_reg,
         }
     }
 }
@@ -113,13 +134,22 @@ impl TemplateContext {
             let pin_ctx = PinCtx::new(&p.pin.pin());
             let (method, is_output, speed) = p.pin.template_vars();
 
+            // Определяем CRL/CRH регистр по номеру пина (для STM32F1)
+            let pin_number: u32 = pin_ctx.pin_num.parse().unwrap_or(0);
+            let cr_reg = if pin_number >= 8 {
+                "crh".to_string()
+            } else {
+                "crl".to_string()
+            };
+
             gpio_pins.push(GpioPinCtx {
                 label: p.label(),
-                port: pin_ctx.port,
+                port: pin_ctx.port.clone(),
                 pin_num: pin_ctx.pin_num,
                 method: method.to_string(),
                 is_output,
                 speed: speed.map(|s| s.to_string()),
+                cr_reg,
             });
         }
         gpio_pins
@@ -210,12 +240,7 @@ impl TemplateContext {
     /// Возвращает контекст устройства и флаг наличия TCP-сервера, который
     /// используется feature-флагами генератора и legacy W5500-шаблонами.
     fn build_w5500_ctx(id: u64, w5500: &W5500Config) -> (W5500Ctx, bool) {
-        let spi_bus = match &w5500.spi_bus {
-            ChosenSpiBus::StmF401(b) => {
-                let s: &'static str = b.into();
-                s.to_lowercase()
-            }
-        };
+        let spi_bus = w5500.spi_bus.variant_name().to_lowercase();
 
         let (socket_mode_ctx, has_tcp) = match w5500.socket_mode {
             SocketMode::TcpServer { port, socket_num } => (
@@ -268,6 +293,27 @@ impl TemplateContext {
             .unwrap_or("stm32f401")
             .to_string();
 
+        // Параметры, зависящие от конкретного MCU
+        let (target, chip, flash_origin, flash_length, ram_origin, ram_length) =
+            match config.board.mcu() {
+                TargetMcu::StmF401 => (
+                    "thumbv7em-none-eabi".to_string(),
+                    "STM32F401CCU6".to_string(),
+                    "0x08000000".to_string(),
+                    "256K".to_string(),
+                    "0x20000000".to_string(),
+                    "64K".to_string(),
+                ),
+                TargetMcu::StmF103 => (
+                    "thumbv7m-none-eabi".to_string(),
+                    "STM32F103C8T6".to_string(),
+                    "0x08000000".to_string(),
+                    "64K".to_string(),
+                    "0x20000000".to_string(),
+                    "20K".to_string(),
+                ),
+            };
+
         let gpio_pins = Self::build_gpio_ctx(config);
         let spis = Self::build_spi_ctx(config);
         let peripherals_ctx = Self::build_peripherals_ctx(config);
@@ -277,6 +323,12 @@ impl TemplateContext {
             mcu_family,
             hal_version,
             hal_feature,
+            target,
+            chip,
+            flash_origin,
+            flash_length,
+            ram_origin,
+            ram_length,
             used_ports,
             gpio_pins,
             spis,

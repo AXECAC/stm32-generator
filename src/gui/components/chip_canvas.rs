@@ -56,6 +56,7 @@ pub struct ChipCanvasModel {
 pub enum ChipCanvasInput {
     UpdatePins(Vec<(Pin, Option<String>, bool)>),
     UpdateLockedPins(Vec<String>),
+    UpdateChipLabel(String),
     ClearSelection,
     HandleClick(f64, f64, f64, f64),
 }
@@ -138,6 +139,10 @@ impl SimpleComponent for ChipCanvasModel {
             }
             ChipCanvasInput::UpdateLockedPins(keys) => {
                 self.state.borrow_mut().locked_pin_keys = keys;
+            }
+            ChipCanvasInput::UpdateChipLabel(label) => {
+                self.state.borrow_mut().chip_label = label;
+                redraw = true;
             }
             ChipCanvasInput::ClearSelection => {
                 self.state.borrow_mut().selected_pin_key = None;
