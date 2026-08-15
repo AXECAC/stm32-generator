@@ -293,3 +293,6 @@ impl Config {
         Some(self.peripherals.remove(pos).1)
     }
 }
+
+#[cfg(test)]
+mod tests;
