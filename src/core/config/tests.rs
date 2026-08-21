@@ -41,6 +41,58 @@ fn config_with_spi1_and_spi2() -> Config {
     config
 }
 
+#[test]
+fn add_spi_rejects_invalid_mapping_from_direct_struct_construction() {
+    let mut config = Config::new(TargetBoard::BlackPill(TargetMcu::StmF401));
+    let spi = SpiConfig {
+        bus: ChosenSpiBus::StmF401(StmF401SpiBus::SPI1),
+        frequency_mhz: 10,
+        mode: SpiMode::Mode0,
+        sck: ChosenPin::StmF401(StmF401Pin::B13),
+        miso: Some(ChosenPin::StmF401(StmF401Pin::B14)),
+        mosi: Some(ChosenPin::StmF401(StmF401Pin::B15)),
+    };
+
+    assert!(matches!(
+        config.add_spi_bus(spi),
+        Err(ConfigError::UnsupportedSpiMapping {
+            bus: ChosenSpiBus::StmF401(StmF401SpiBus::SPI1),
+            ..
+        })
+    ));
+}
+
+#[test]
+fn black_pill_does_not_expose_f401_spi4_without_board_pins() {
+    let config = Config::new(TargetBoard::BlackPill(TargetMcu::StmF401));
+    let available_buses = config.available_spi_buses();
+
+    assert!(available_buses.contains(&ChosenSpiBus::StmF401(StmF401SpiBus::SPI1)));
+    assert!(available_buses.contains(&ChosenSpiBus::StmF401(StmF401SpiBus::SPI2)));
+    assert!(available_buses.contains(&ChosenSpiBus::StmF401(StmF401SpiBus::SPI3)));
+    assert!(!available_buses.contains(&ChosenSpiBus::StmF401(StmF401SpiBus::SPI4)));
+}
+
+#[test]
+fn black_pill_rejects_f401_spi4_mapping_at_config_level() {
+    let mut config = Config::new(TargetBoard::BlackPill(TargetMcu::StmF401));
+    let spi = SpiConfig {
+        bus: ChosenSpiBus::StmF401(StmF401SpiBus::SPI4),
+        frequency_mhz: 10,
+        mode: SpiMode::Mode0,
+        sck: ChosenPin::StmF401(StmF401Pin::E2),
+        miso: Some(ChosenPin::StmF401(StmF401Pin::E5)),
+        mosi: Some(ChosenPin::StmF401(StmF401Pin::E6)),
+    };
+
+    assert_eq!(
+        config.add_spi_bus(spi),
+        Err(ConfigError::SpiMappingUnavailableOnBoard(
+            ChosenSpiBus::StmF401(StmF401SpiBus::SPI4)
+        ))
+    );
+}
+
 fn w5500_config(spi_bus: ChosenSpiBus, cs: StmF401Pin, rst: StmF401Pin) -> W5500Config {
     W5500Config {
         spi_bus,

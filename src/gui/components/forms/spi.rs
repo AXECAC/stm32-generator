@@ -8,9 +8,9 @@ use relm4::{ComponentParts, ComponentSender, SimpleComponent, adw, gtk};
 use strum::VariantNames;
 
 use crate::core::config::{SpiConfig, SpiMode};
-use crate::core::gpio::{ChosenPin, ChosenSpiBus};
+use crate::core::gpio::{ChosenSpiBus, SpiMapping};
 use crate::gui::components::forms::{ComboField, EntryField};
-use crate::gui::utils::{default_distinct_pin_index, mode_from_index};
+use crate::gui::utils::mode_from_index;
 
 /// Модель компонента формы настройки SPI.
 ///
@@ -23,16 +23,14 @@ pub(crate) struct SpiFormModel {
     mode: ComboField<SpiMode>,
     /// Частота SPI в МГц.
     frequency: EntryField,
-    /// Свободные GPIO-пины для SCK.
-    sck: ComboField<ChosenPin>,
+    /// Все mapping, полученные от выбранного MCU.
+    all_mappings: Vec<SpiMapping>,
+    /// Доступные mapping с учётом выбранной шины и занятых пинов.
+    mapping: ComboField<SpiMapping>,
     /// Флаг использования линии MISO.
     use_miso: bool,
-    /// Свободные GPIO-пины для MISO.
-    miso: ComboField<ChosenPin>,
     /// Флаг использования линии MOSI.
     use_mosi: bool,
-    /// Свободные GPIO-пины для MOSI.
-    mosi: ComboField<ChosenPin>,
     /// Сообщение об ошибке формы.
     error: Option<String>,
     /// Guard для программного обновления GTK-моделей.
@@ -42,12 +40,12 @@ pub(crate) struct SpiFormModel {
 /// Входящие сообщения компонента формы SPI.
 #[derive(Debug)]
 pub(crate) enum SpiFormInput {
-    /// Обновить доступные SPI-шины и свободные GPIO-пины.
+    /// Обновить доступные SPI-шины и совместимые mapping.
     UpdateOptions {
         /// SPI-шины, которые можно добавить.
         buses: Vec<ChosenSpiBus>,
-        /// Свободные GPIO-пины для линий SPI.
-        pins: Vec<ChosenPin>,
+        /// Полные аппаратные mapping доступных шин.
+        mappings: Vec<SpiMapping>,
     },
     /// Пользователь выбрал SPI-шину по индексу.
     BusSelected(usize),
@@ -55,16 +53,12 @@ pub(crate) enum SpiFormInput {
     FrequencyChanged(String),
     /// Пользователь выбрал режим SPI по индексу.
     ModeSelected(usize),
-    /// Пользователь выбрал SCK по индексу.
-    SckSelected(usize),
+    /// Пользователь выбрал готовый SPI mapping.
+    MappingSelected(usize),
     /// Пользователь включил или выключил линию MISO.
     UseMisoToggled(bool),
-    /// Пользователь выбрал MISO по индексу.
-    MisoSelected(usize),
     /// Пользователь включил или выключил линию MOSI.
     UseMosiToggled(bool),
-    /// Пользователь выбрал MOSI по индексу.
-    MosiSelected(usize),
     /// Пользователь запросил сборку и отправку формы.
     Submit,
     /// Отобразить ошибку, полученную снаружи компонента.
@@ -95,7 +89,7 @@ impl SimpleComponent for SpiFormModel {
 
             adw::PreferencesGroup {
                 set_title: "Добавить шину SPI",
-                set_description: Some("Настройте параметры шины и выберите свободные пины."),
+                set_description: Some("Настройте параметры шины и выберите совместимую распиновку."),
 
                 adw::ComboRow {
                     set_title: "Шина",
@@ -114,6 +108,44 @@ impl SimpleComponent for SpiFormModel {
                         }
                         sender.input(SpiFormInput::BusSelected(row.selected() as usize));
                     }
+                },
+
+                adw::ComboRow {
+                    set_title: "Распиновка",
+                    set_subtitle: "Порядок: SCK / MISO / MOSI",
+                    set_model: Some(&model.mapping.model),
+                    #[watch]
+                    set_selected: model.mapping.selected_idx as u32,
+                    #[watch]
+                    set_sensitive: !model.mapping.is_empty(),
+
+                    connect_selected_notify[
+                        sender,
+                        refresh_guard = model.refresh_guard.clone()
+                    ] => move |row| {
+                        if refresh_guard.get() {
+                            return;
+                        }
+                        sender.input(SpiFormInput::MappingSelected(row.selected() as usize));
+                    }
+                },
+
+                adw::ActionRow {
+                    set_title: "SCK",
+                    #[watch]
+                    set_subtitle: model.selected_mapping_sck(),
+                },
+
+                adw::ActionRow {
+                    set_title: "MISO",
+                    #[watch]
+                    set_subtitle: model.selected_mapping_miso(),
+                },
+
+                adw::ActionRow {
+                    set_title: "MOSI",
+                    #[watch]
+                    set_subtitle: model.selected_mapping_mosi(),
                 },
 
                 adw::ComboRow {
@@ -148,25 +180,6 @@ impl SimpleComponent for SpiFormModel {
                     }
                 },
 
-                adw::ComboRow {
-                    set_title: "SCK",
-                    set_model: Some(&model.sck.model),
-                    #[watch]
-                    set_selected: model.sck.selected_idx as u32,
-                    #[watch]
-                    set_sensitive: !model.sck.is_empty(),
-
-                    connect_selected_notify[
-                        sender,
-                        refresh_guard = model.refresh_guard.clone()
-                    ] => move |row| {
-                        if refresh_guard.get() {
-                            return;
-                        }
-                        sender.input(SpiFormInput::SckSelected(row.selected() as usize));
-                    }
-                },
-
                 adw::ActionRow {
                     set_title: "Включить MISO",
 
@@ -178,27 +191,6 @@ impl SimpleComponent for SpiFormModel {
                         connect_active_notify[sender] => move |switch| {
                             sender.input(SpiFormInput::UseMisoToggled(switch.is_active()));
                         }
-                    }
-                },
-
-                adw::ComboRow {
-                    set_title: "MISO",
-                    set_model: Some(&model.miso.model),
-                    #[watch]
-                    set_selected: model.miso.selected_idx as u32,
-                    #[watch]
-                    set_visible: model.use_miso,
-                    #[watch]
-                    set_sensitive: !model.miso.is_empty(),
-
-                    connect_selected_notify[
-                        sender,
-                        refresh_guard = model.refresh_guard.clone()
-                    ] => move |row| {
-                        if refresh_guard.get() {
-                            return;
-                        }
-                        sender.input(SpiFormInput::MisoSelected(row.selected() as usize));
                     }
                 },
 
@@ -216,26 +208,6 @@ impl SimpleComponent for SpiFormModel {
                     }
                 },
 
-                adw::ComboRow {
-                    set_title: "MOSI",
-                    set_model: Some(&model.mosi.model),
-                    #[watch]
-                    set_selected: model.mosi.selected_idx as u32,
-                    #[watch]
-                    set_visible: model.use_mosi,
-                    #[watch]
-                    set_sensitive: !model.mosi.is_empty(),
-
-                    connect_selected_notify[
-                        sender,
-                        refresh_guard = model.refresh_guard.clone()
-                    ] => move |row| {
-                        if refresh_guard.get() {
-                            return;
-                        }
-                        sender.input(SpiFormInput::MosiSelected(row.selected() as usize));
-                    }
-                }
             },
 
             gtk::Label {
@@ -276,12 +248,13 @@ impl SimpleComponent for SpiFormModel {
 
     fn update(&mut self, message: Self::Input, sender: ComponentSender<Self>) {
         match message {
-            SpiFormInput::UpdateOptions { buses, pins } => self.update_options(buses, pins),
+            SpiFormInput::UpdateOptions { buses, mappings } => self.update_options(buses, mappings),
             SpiFormInput::BusSelected(idx) => {
                 if self.bus.selected_idx == idx {
                     return;
                 }
                 self.bus.selected_idx = idx;
+                self.refresh_mapping_options();
             }
             SpiFormInput::FrequencyChanged(frequency) => self.frequency.set_value(frequency),
             SpiFormInput::ModeSelected(idx) => {
@@ -290,35 +263,25 @@ impl SimpleComponent for SpiFormModel {
                 }
                 self.mode.selected_idx = idx;
             }
-            SpiFormInput::SckSelected(idx) => {
-                if self.sck.selected_idx == idx {
+            SpiFormInput::MappingSelected(idx) => {
+                if self.mapping.selected_idx == idx {
                     return;
                 }
-                self.sck.selected_idx = idx;
+                self.mapping.selected_idx = idx;
             }
             SpiFormInput::UseMisoToggled(active) => {
                 if self.use_miso == active {
                     return;
                 }
                 self.use_miso = active;
-            }
-            SpiFormInput::MisoSelected(idx) => {
-                if self.miso.selected_idx == idx {
-                    return;
-                }
-                self.miso.selected_idx = idx;
+                self.refresh_mapping_options();
             }
             SpiFormInput::UseMosiToggled(active) => {
                 if self.use_mosi == active {
                     return;
                 }
                 self.use_mosi = active;
-            }
-            SpiFormInput::MosiSelected(idx) => {
-                if self.mosi.selected_idx == idx {
-                    return;
-                }
-                self.mosi.selected_idx = idx;
+                self.refresh_mapping_options();
             }
             SpiFormInput::Submit => self.submit(sender),
             SpiFormInput::SetError(message) => self.error = Some(message),
@@ -335,11 +298,10 @@ impl SpiFormModel {
             bus: ComboField::empty(),
             mode: ComboField::new(Self::spi_modes(), SpiMode::VARIANTS),
             frequency: EntryField::new("10"),
-            sck: ComboField::empty(),
+            all_mappings: Vec::new(),
+            mapping: ComboField::empty(),
             use_miso: true,
-            miso: ComboField::empty(),
             use_mosi: true,
-            mosi: ComboField::empty(),
             error: None,
             refresh_guard: Rc::new(Cell::new(false)),
         }
@@ -352,8 +314,8 @@ impl SpiFormModel {
             .collect()
     }
 
-    /// Обновляет списки доступных SPI-шин и GPIO-пинов.
-    fn update_options(&mut self, buses: Vec<ChosenSpiBus>, pins: Vec<ChosenPin>) {
+    /// Обновляет списки доступных SPI-шин и совместимых mapping.
+    fn update_options(&mut self, buses: Vec<ChosenSpiBus>, mappings: Vec<SpiMapping>) {
         self.refresh_guard.set(true);
 
         let bus_names = buses
@@ -362,21 +324,14 @@ impl SpiFormModel {
             .collect::<Vec<_>>();
         self.bus.replace_items(buses, &bus_names);
 
-        let pin_names = pins
-            .iter()
-            .map(|pin| pin.variant_name())
-            .collect::<Vec<_>>();
-        self.sck.replace_items(pins.clone(), &pin_names);
-        self.miso.replace_items(pins.clone(), &pin_names);
-        self.mosi.replace_items(pins, &pin_names);
-
-        self.clamp_indexes();
+        self.all_mappings = mappings;
+        self.rebuild_mapping_options();
         self.refresh_guard.set(false);
     }
 
     /// Возвращает, можно ли отправлять текущую форму SPI.
     fn can_submit(&self) -> bool {
-        !self.bus.is_empty() && !self.sck.is_empty()
+        !self.bus.is_empty() && !self.mapping.is_empty()
     }
 
     /// Обрабатывает отправку формы.
@@ -406,52 +361,111 @@ impl SpiFormModel {
             return Err("Нет доступных SPI-шин для добавления".to_string());
         };
 
-        let Some(sck) = self.sck.selected() else {
-            return Err("Выберите SCK из списка свободных пинов".to_string());
+        let Some(mapping) = self.mapping.selected() else {
+            return Err("Выберите совместимую распиновку SPI".to_string());
         };
 
         let mode = mode_from_index(self.mode.selected_idx);
         let miso = if self.use_miso {
-            match self.miso.selected() {
-                Some(pin) => Some(pin),
-                None => return Err("Выберите MISO из списка свободных пинов".to_string()),
-            }
+            Some(mapping.miso)
         } else {
             None
         };
         let mosi = if self.use_mosi {
-            match self.mosi.selected() {
-                Some(pin) => Some(pin),
-                None => return Err("Выберите MOSI из списка свободных пинов".to_string()),
-            }
+            Some(mapping.mosi)
         } else {
             None
         };
 
-        SpiConfig::new(bus, frequency_mhz, mode, sck, miso, mosi).map_err(|e| e.to_string())
+        SpiConfig::new(bus, frequency_mhz, mode, mapping.sck, miso, mosi).map_err(|e| e.to_string())
     }
 
     /// Сбрасывает форму добавления SPI в безопасные значения по умолчанию.
     fn reset_after_change(&mut self) {
+        self.refresh_guard.set(true);
         self.bus.reset_selected(0);
         self.mode.reset_selected(0);
-        self.sck.reset_selected(0);
-        self.miso
-            .reset_selected(default_distinct_pin_index(1, self.sck.len()));
-        self.mosi
-            .reset_selected(default_distinct_pin_index(2, self.sck.len()));
         self.use_miso = true;
         self.use_mosi = true;
         self.frequency.set_text("10");
+        self.rebuild_mapping_options();
+        self.refresh_guard.set(false);
     }
 
-    /// Ограничивает индексы формы актуальными размерами списков.
-    fn clamp_indexes(&mut self) {
-        self.bus.clamp_selected();
-        self.mode.clamp_selected();
-        self.sck.clamp_selected();
-        self.miso.clamp_selected();
-        self.mosi.clamp_selected();
+    /// Перестраивает список mapping после выбора шины или optional-линий.
+    fn refresh_mapping_options(&mut self) {
+        self.refresh_guard.set(true);
+        self.rebuild_mapping_options();
+        self.refresh_guard.set(false);
+    }
+
+    /// Перестраивает mapping и сбрасывает выбранный индекс в одной защищённой операции.
+    fn rebuild_mapping_options(&mut self) {
+        let selected_bus = self.bus.selected();
+        let mut mappings = Vec::new();
+        let mut seen = Vec::new();
+
+        for mapping in self.all_mappings.iter().copied() {
+            if Some(mapping.bus) != selected_bus {
+                continue;
+            }
+
+            let key = (
+                mapping.sck,
+                self.use_miso.then_some(mapping.miso),
+                self.use_mosi.then_some(mapping.mosi),
+            );
+            if !seen.contains(&key) {
+                seen.push(key);
+                mappings.push(mapping);
+            }
+        }
+
+        let labels = mappings
+            .iter()
+            .map(|mapping| {
+                format!(
+                    "{} / {} / {}",
+                    mapping.sck.variant_name(),
+                    mapping.miso.variant_name(),
+                    mapping.mosi.variant_name(),
+                )
+            })
+            .collect::<Vec<_>>();
+        self.mapping.replace_owned_items(mappings, &labels);
+        self.mapping.reset_selected(0);
+    }
+
+    /// Возвращает отображаемый SCK выбранного mapping.
+    fn selected_mapping_sck(&self) -> &'static str {
+        self.mapping
+            .selected()
+            .map(|mapping| mapping.sck.variant_name())
+            .unwrap_or("—")
+    }
+
+    /// Возвращает отображаемый MISO выбранного mapping.
+    fn selected_mapping_miso(&self) -> &'static str {
+        if !self.use_miso {
+            return "отключён";
+        }
+
+        self.mapping
+            .selected()
+            .map(|mapping| mapping.miso.variant_name())
+            .unwrap_or("—")
+    }
+
+    /// Возвращает отображаемый MOSI выбранного mapping.
+    fn selected_mapping_mosi(&self) -> &'static str {
+        if !self.use_mosi {
+            return "отключён";
+        }
+
+        self.mapping
+            .selected()
+            .map(|mapping| mapping.mosi.variant_name())
+            .unwrap_or("—")
     }
 
     /// Сохраняет локальную ошибку формы для UI и пишет её в лог.

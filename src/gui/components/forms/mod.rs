@@ -45,6 +45,12 @@ impl<T> ComboField<T> {
         self.clamp_selected();
     }
 
+    /// Заменяет варианты списка, если подписи сформированы во время работы.
+    pub(crate) fn replace_owned_items(&mut self, items: Vec<T>, labels: &[String]) {
+        let label_refs = labels.iter().map(String::as_str).collect::<Vec<_>>();
+        self.replace_items(items, &label_refs);
+    }
+
     /// Ограничивает выбранный индекс актуальным размером списка.
     pub(crate) fn clamp_selected(&mut self) {
         self.selected_idx = clamp_index(self.selected_idx, self.items.len());

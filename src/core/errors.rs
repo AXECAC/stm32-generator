@@ -20,6 +20,17 @@ pub enum ConfigError {
     #[error("Пин уже используется: {0:?}")]
     PinAlreadyInUse(ChosenPin),
 
+    #[error("Недопустимая распиновка {bus:?}: SCK={sck:?}, MISO={miso:?}, MOSI={mosi:?}")]
+    UnsupportedSpiMapping {
+        bus: ChosenSpiBus,
+        sck: ChosenPin,
+        miso: Option<ChosenPin>,
+        mosi: Option<ChosenPin>,
+    },
+
+    #[error("SPI mapping недоступен на выбранной плате: {0:?}")]
+    SpiMappingUnavailableOnBoard(ChosenSpiBus),
+
     #[error("SPI шина используется периферией, удалите сначала её: {0:?}")]
     SpiBusInUse(ChosenSpiBus),
 

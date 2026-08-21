@@ -4,7 +4,7 @@ use crate::core::{
     UsesPins,
     board::{Pin, PinType, TargetBoard},
     errors::ConfigError,
-    gpio::{ChosenPin, ChosenSpiBus},
+    gpio::{ChosenPin, ChosenSpiBus, SpiMapping},
     peripherals::Peripheral,
     peripherals::ethernet::w5500::SocketMode,
 };
@@ -56,6 +56,69 @@ impl Config {
     /// Возвращает слайс SPI-шин из [`Config`].
     pub fn spi(&self) -> &[SpiConfig] {
         &self.spi_buses
+    }
+
+    /// Возвращает SPI-шины, которые доступны именно на выбранной плате.
+    ///
+    /// `TargetMcu::all_spi_buses()` описывает возможности чипа. Здесь они
+    /// дополнительно ограничиваются pinout платы и уже занятыми пинами.
+    pub fn available_spi_buses(&self) -> Vec<ChosenSpiBus> {
+        let configured_buses = self.spi_buses.iter().map(|spi| spi.bus).collect::<Vec<_>>();
+        let used_pins = self.all_uses_pins();
+
+        self.board
+            .mcu()
+            .all_spi_buses()
+            .into_iter()
+            .filter(|bus| !configured_buses.contains(bus))
+            .filter(|bus| {
+                self.available_spi_mappings_for_bus(*bus, &used_pins)
+                    .next()
+                    .is_some()
+            })
+            .collect()
+    }
+
+    /// Возвращает свободные полные mapping для SPI-шин выбранной платы.
+    pub fn available_spi_mappings(&self) -> Vec<SpiMapping> {
+        let used_pins = self.all_uses_pins();
+        self.available_spi_buses()
+            .into_iter()
+            .flat_map(|bus| self.available_spi_mappings_for_bus(bus, &used_pins))
+            .collect()
+    }
+
+    fn available_spi_mappings_for_bus<'a>(
+        &'a self,
+        bus: ChosenSpiBus,
+        used_pins: &'a [ChosenPin],
+    ) -> impl Iterator<Item = SpiMapping> + 'a {
+        self.board_spi_mappings_for_bus(bus).filter(move |mapping| {
+            [mapping.sck, mapping.miso, mapping.mosi]
+                .into_iter()
+                .all(|pin| !used_pins.contains(&pin))
+        })
+    }
+
+    fn board_spi_mappings_for_bus(
+        &self,
+        bus: ChosenSpiBus,
+    ) -> impl Iterator<Item = SpiMapping> + '_ {
+        let board_pins = self
+            .board
+            .build_pins()
+            .into_iter()
+            .filter_map(|pin| match pin.pin_type {
+                PinType::Gpio(chosen_pin) => Some(chosen_pin),
+                PinType::Power => None,
+            })
+            .collect::<Vec<_>>();
+
+        bus.spi_mappings().into_iter().filter(move |mapping| {
+            [mapping.sck, mapping.miso, mapping.mosi]
+                .into_iter()
+                .all(|pin| board_pins.contains(&pin))
+        })
     }
 
     /// Возвращает слайс периферийных устройств из [`Config`].
@@ -229,6 +292,24 @@ impl Config {
     pub fn add_spi_bus(&mut self, spi: SpiConfig) -> ConfigResult<()> {
         if self.spi_buses.iter().any(|current| current.bus == spi.bus) {
             return Err(ConfigError::DuplicateSpiBus(spi.bus));
+        }
+
+        if !spi.bus.supports_spi_pins(spi.sck, spi.miso, spi.mosi) {
+            return Err(ConfigError::UnsupportedSpiMapping {
+                bus: spi.bus,
+                sck: spi.sck,
+                miso: spi.miso,
+                mosi: spi.mosi,
+            });
+        }
+
+        let board_mapping_available = self.board_spi_mappings_for_bus(spi.bus).any(|mapping| {
+            mapping.sck == spi.sck
+                && spi.miso.is_none_or(|pin| pin == mapping.miso)
+                && spi.mosi.is_none_or(|pin| pin == mapping.mosi)
+        });
+        if !board_mapping_available {
+            return Err(ConfigError::SpiMappingUnavailableOnBoard(spi.bus));
         }
 
         self.check_conflicts_pins(&spi.uses_pins())?;

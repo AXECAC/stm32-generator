@@ -1,6 +1,18 @@
 use serde::Serialize;
 pub mod f4;
 
+/// Полная совместимая распиновка одной SPI-шины.
+///
+/// Mapping описывает только аппаратные SPI-линии. CS и RST периферии
+/// остаются обычными GPIO и в этот тип не входят.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct SpiMapping {
+    pub bus: ChosenSpiBus,
+    pub sck: ChosenPin,
+    pub miso: ChosenPin,
+    pub mosi: ChosenPin,
+}
+
 /// Предоставляет абстракцию для графического интерфейса над специфичными для МК режимами пинов.
 ///
 /// Трейт позволяет пользовательскому интерфейсу (UI) динамически отрисовывать доступные
@@ -196,6 +208,27 @@ macro_rules! define_mcus {
                 match self {
                     $( Self::$variant(p) => p.into() ),*
                 }
+            }
+
+            /// Возвращает полные аппаратно совместимые mapping для этой шины.
+            pub fn spi_mappings(&self) -> Vec<SpiMapping> {
+                match self {
+                    $( Self::$variant(bus) => bus.spi_mappings() ),*
+                }
+            }
+
+            /// Проверяет выбранные линии, допускаючи отключение MISO/MOSI.
+            pub fn supports_spi_pins(
+                &self,
+                sck: ChosenPin,
+                miso: Option<ChosenPin>,
+                mosi: Option<ChosenPin>,
+            ) -> bool {
+                self.spi_mappings().iter().any(|mapping| {
+                    mapping.sck == sck
+                        && miso.is_none_or(|pin| pin == mapping.miso)
+                        && mosi.is_none_or(|pin| pin == mapping.mosi)
+                })
             }
         }
     };

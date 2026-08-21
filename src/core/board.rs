@@ -1,3 +1,4 @@
+use crate::core::gpio::f4::f401::StmF401Pin;
 use crate::core::gpio::{ChosenPin, TargetMcu};
 use serde::Serialize;
 
@@ -60,8 +61,20 @@ impl TargetBoard {
                     key: "GND".into(),
                 });
 
-                // Пины МК
-                for pin in mcu.all_pins() {
+                // Пины, реально выведенные на текущую плату.
+                let board_pins = match mcu {
+                    TargetMcu::StmF401 => StmF401Pin::black_pill_pins()
+                        .iter()
+                        .copied()
+                        .map(ChosenPin::StmF401)
+                        .collect::<Vec<_>>(),
+                };
+
+                for pin in mcu
+                    .all_pins()
+                    .into_iter()
+                    .filter(|pin| board_pins.contains(pin))
+                {
                     let variant_name = pin.variant_name();
                     pins.push(Pin {
                         pin_type: PinType::Gpio(pin),
