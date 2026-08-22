@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::f64::consts::PI;
 use std::rc::Rc;
 
-use crate::core::board::{Pin, PinType};
+use crate::core::boards::{Pin, PinType};
 use crate::gui::colors;
 
 macro_rules! set_color {

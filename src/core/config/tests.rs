@@ -1,7 +1,7 @@
 use std::net::Ipv4Addr;
 
 use super::*;
-use crate::core::board::TargetBoardId;
+use crate::core::boards::{TargetBoard, TargetBoardId};
 use crate::core::gpio::TargetMcu;
 use crate::core::gpio::f4::f401::{StmF401Pin, StmF401SpiBus};
 use crate::core::peripherals::ethernet::MacAddr;

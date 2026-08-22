@@ -3,7 +3,7 @@ use std::sync::{Arc, RwLock};
 use adw::prelude::*;
 use relm4::{ComponentParts, ComponentSender, SimpleComponent, adw, gtk};
 
-use crate::core::board::{TargetBoard, TargetBoardId};
+use crate::core::boards::{TargetBoard, TargetBoardId};
 use crate::core::config::Config;
 use crate::core::gpio::TargetMcu;
 use crate::gui::components::forms::ComboField;

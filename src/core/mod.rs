@@ -1,6 +1,6 @@
 use crate::core::gpio::ChosenPin;
 
-pub mod board;
+pub mod boards;
 pub mod config;
 pub mod errors;
 pub mod generator;

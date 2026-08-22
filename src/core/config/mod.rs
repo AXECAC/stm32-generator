@@ -2,7 +2,7 @@ use serde::Serialize;
 
 use crate::core::{
     UsesPins,
-    board::{Pin, PinType, TargetBoard},
+    boards::{Pin, PinType, TargetBoard},
     errors::ConfigError,
     gpio::{ChosenPin, ChosenSpiBus, SpiMapping},
     peripherals::Peripheral,

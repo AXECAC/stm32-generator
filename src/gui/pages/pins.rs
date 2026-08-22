@@ -6,7 +6,7 @@ use relm4::{
     SimpleComponent, adw, gtk,
 };
 
-use crate::core::board::{Pin, PinType};
+use crate::core::boards::{Pin, PinType};
 use crate::core::config::{Config, PinConfig};
 use crate::gui::components::chip_canvas::{ChipCanvasInput, ChipCanvasModel, ChipCanvasOutput};
 use crate::gui::components::forms::pin_mode::{

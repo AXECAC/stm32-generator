@@ -5,7 +5,7 @@ use relm4::{
 };
 use std::sync::{Arc, RwLock};
 
-use crate::core::board::{TargetBoard, TargetBoardId};
+use crate::core::boards::{TargetBoard, TargetBoardId};
 use crate::core::config::Config;
 use crate::core::gpio::TargetMcu;
 

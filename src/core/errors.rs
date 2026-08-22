@@ -2,7 +2,7 @@ use thiserror::Error;
 
 use std::net::Ipv4Addr;
 
-use crate::core::board::TargetBoardId;
+use crate::core::boards::TargetBoardId;
 use crate::core::gpio::{ChosenPin, ChosenSpiBus};
 use crate::core::peripherals::ethernet::MacAddr;
 
