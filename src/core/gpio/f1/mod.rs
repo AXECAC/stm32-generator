@@ -157,3 +157,39 @@ impl StmF1OutputMode {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{StmF1InputMode, StmF1OutputMode, StmF1OutputSpeed, StmF1PinMode};
+    use crate::core::gpio::PinModeUiInfo;
+
+    #[test]
+    fn default_mode_is_pull_up_input() {
+        let mode = StmF1PinMode::default();
+
+        assert_eq!(mode.current_mode_index(), 0);
+        assert_eq!(mode.mode_variants(), vec!["Input", "Output"]);
+        assert_eq!(mode, StmF1PinMode::Input(StmF1InputMode::PullUp));
+    }
+
+    #[test]
+    fn output_mode_exposes_type_and_f1_speed_properties() {
+        let mut mode = StmF1PinMode::default();
+        mode.set_mode_index(1);
+
+        assert_eq!(
+            mode,
+            StmF1PinMode::Output(StmF1OutputMode::PushPull, StmF1OutputSpeed::Mhz2)
+        );
+        assert_eq!(mode.properties()[0].0, "Тип выхода");
+        assert_eq!(mode.properties()[1].0, "Скорость");
+
+        mode.set_property(0, 1);
+        mode.set_property(1, 2);
+
+        assert_eq!(
+            mode,
+            StmF1PinMode::Output(StmF1OutputMode::OpenDrain, StmF1OutputSpeed::Mhz50)
+        );
+    }
+}

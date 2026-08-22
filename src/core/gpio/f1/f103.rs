@@ -75,7 +75,25 @@ impl StmF103SpiBus {
 #[cfg(test)]
 mod tests {
     use super::{StmF103Pin, StmF103SpiBus};
-    use crate::core::gpio::{ChosenPin, ChosenSpiBus};
+    use crate::core::gpio::{ChosenPin, ChosenSpiBus, TargetMcu};
+
+    #[test]
+    fn f103_all_pins_matches_lqfp48_gpio_universe() {
+        let actual = TargetMcu::StmF103
+            .all_pins()
+            .into_iter()
+            .map(|pin| pin.variant_name().to_string())
+            .collect::<Vec<_>>();
+        let expected = [
+            "A0", "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10", "A11", "A12", "A13",
+            "A14", "A15", "B0", "B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B9", "B10", "B11",
+            "B12", "B13", "B14", "B15", "C13", "C14", "C15", "D0", "D1",
+        ]
+        .map(str::to_string)
+        .to_vec();
+
+        assert_eq!(actual, expected);
+    }
 
     #[test]
     fn spi1_uses_default_pins() {
