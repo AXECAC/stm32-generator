@@ -37,10 +37,16 @@ fn blue_pill_exposes_sorted_gpio_subset() {
         })
         .collect::<Vec<_>>();
 
-    assert_eq!(gpio_keys.len(), 32);
-    assert_eq!(gpio_keys.first().map(String::as_str), Some("A0"));
-    assert_eq!(gpio_keys.last().map(String::as_str), Some("C15"));
-    assert!(!gpio_keys.iter().any(|pin| pin == "A13"));
-    assert!(!gpio_keys.iter().any(|pin| pin == "A14"));
-    assert!(!gpio_keys.iter().any(|pin| pin == "B2"));
+    assert_eq!(
+        gpio_keys,
+        [
+            "A0", "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10", "A11", "A12", "A15",
+            "B0", "B1", "B3", "B4", "B5", "B6", "B7", "B8", "B9", "B10", "B11", "B12", "B13",
+            "B14", "B15", "C13", "C14", "C15",
+        ]
+        .map(str::to_string)
+        .to_vec()
+    );
+
+    assert_eq!(board.build_pins().len(), 39);
 }
