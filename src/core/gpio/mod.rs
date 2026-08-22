@@ -1,4 +1,5 @@
 use serde::Serialize;
+pub mod f1;
 pub mod f4;
 
 /// Полная совместимая распиновка одной SPI-шины.
@@ -235,6 +236,14 @@ macro_rules! define_mcus {
 }
 
 define_mcus! {
+    StmF103 {
+        pin_type: crate::core::gpio::f1::f103::StmF103Pin,
+        mode_type: crate::core::gpio::f1::StmF1PinMode,
+        spi_bus_type: crate::core::gpio::f1::f103::StmF103SpiBus,
+        family: "stm32f1",
+        hal_version: "0.11.0",
+        feature: "stm32f103",
+    },
     StmF401 {
         pin_type: crate::core::gpio::f4::f401::StmF401Pin,
         mode_type: crate::core::gpio::f4::StmF4PinMode,
