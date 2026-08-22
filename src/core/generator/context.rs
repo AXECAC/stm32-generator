@@ -1,6 +1,6 @@
 use crate::core::config::Config;
 use crate::core::errors::GeneratorError;
-use crate::core::gpio::{ChosenPin, ChosenSpiBus};
+use crate::core::gpio::ChosenPin;
 use crate::core::peripherals::Peripheral;
 use crate::core::peripherals::ethernet::w5500::{SocketMode, W5500Config};
 use serde::Serialize;
@@ -210,12 +210,7 @@ impl TemplateContext {
     /// Возвращает контекст устройства и флаг наличия TCP-сервера, который
     /// используется feature-флагами генератора и legacy W5500-шаблонами.
     fn build_w5500_ctx(id: u64, w5500: &W5500Config) -> (W5500Ctx, bool) {
-        let spi_bus = match &w5500.spi_bus {
-            ChosenSpiBus::StmF401(b) => {
-                let s: &'static str = b.into();
-                s.to_lowercase()
-            }
-        };
+        let spi_bus = w5500.spi_bus.variant_name().to_lowercase();
 
         let (socket_mode_ctx, has_tcp) = match w5500.socket_mode {
             SocketMode::TcpServer { port, socket_num } => (

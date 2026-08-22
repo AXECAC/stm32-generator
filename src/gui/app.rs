@@ -5,7 +5,7 @@ use relm4::{
 };
 use std::sync::{Arc, RwLock};
 
-use crate::core::board::TargetBoard;
+use crate::core::board::{TargetBoard, TargetBoardId};
 use crate::core::config::Config;
 use crate::core::gpio::TargetMcu;
 
@@ -106,9 +106,9 @@ impl SimpleComponent for AppModel {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let config = Arc::new(RwLock::new(Config::new(TargetBoard::BlackPill(
-            TargetMcu::StmF401,
-        ))));
+        let board = TargetBoard::try_new(TargetBoardId::BlackPill, TargetMcu::StmF401)
+            .expect("Black Pill / STM32F401 must be a supported platform");
+        let config = Arc::new(RwLock::new(Config::new(board)));
 
         let start_page = StartPageModel::builder().launch(config.clone()).detach();
         let pins_page = PinsPageModel::builder().launch(config.clone()).detach();

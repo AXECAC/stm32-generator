@@ -2,8 +2,18 @@ use thiserror::Error;
 
 use std::net::Ipv4Addr;
 
+use crate::core::board::TargetBoardId;
 use crate::core::gpio::{ChosenPin, ChosenSpiBus};
 use crate::core::peripherals::ethernet::MacAddr;
+
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum TargetBoardError {
+    #[error("MCU {mcu:?} не поддерживается платой {board:?}")]
+    UnsupportedMcu {
+        board: TargetBoardId,
+        mcu: crate::core::gpio::TargetMcu,
+    },
+}
 
 /// Ошибки создания конфигурации
 #[derive(Debug, Error, PartialEq, Eq)]

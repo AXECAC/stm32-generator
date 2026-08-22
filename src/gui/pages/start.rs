@@ -3,7 +3,7 @@ use std::sync::{Arc, RwLock};
 use adw::prelude::*;
 use relm4::{ComponentParts, ComponentSender, SimpleComponent, adw, gtk};
 
-use crate::core::board::TargetBoard;
+use crate::core::board::{TargetBoard, TargetBoardId};
 use crate::core::config::Config;
 use crate::core::gpio::TargetMcu;
 use crate::gui::components::forms::ComboField;
@@ -88,7 +88,9 @@ impl SimpleComponent for StartPageModel {
         root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let board_items = vec![TargetBoard::BlackPill(TargetMcu::StmF401)];
+        let black_pill = TargetBoard::try_new(TargetBoardId::BlackPill, TargetMcu::StmF401)
+            .expect("Black Pill / STM32F401 must be a supported platform");
+        let board_items = vec![black_pill];
         let board_labels = board_items
             .iter()
             .map(TargetBoard::name)

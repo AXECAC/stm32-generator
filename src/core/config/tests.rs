@@ -1,6 +1,7 @@
 use std::net::Ipv4Addr;
 
 use super::*;
+use crate::core::board::TargetBoardId;
 use crate::core::gpio::TargetMcu;
 use crate::core::gpio::f4::f401::{StmF401Pin, StmF401SpiBus};
 use crate::core::peripherals::ethernet::MacAddr;
@@ -8,7 +9,8 @@ use crate::core::peripherals::ethernet::w5500::{NetworkConfig, SocketMode, W5500
 
 // TODO: Порефакторить
 fn config_with_spi1() -> Config {
-    let mut config = Config::new(TargetBoard::BlackPill(TargetMcu::StmF401));
+    let board = TargetBoard::try_new(TargetBoardId::BlackPill, TargetMcu::StmF401).unwrap();
+    let mut config = Config::new(board);
 
     config
         .add_spi_bus(SpiConfig {
@@ -43,7 +45,8 @@ fn config_with_spi1_and_spi2() -> Config {
 
 #[test]
 fn add_spi_rejects_invalid_mapping_from_direct_struct_construction() {
-    let mut config = Config::new(TargetBoard::BlackPill(TargetMcu::StmF401));
+    let board = TargetBoard::try_new(TargetBoardId::BlackPill, TargetMcu::StmF401).unwrap();
+    let mut config = Config::new(board);
     let spi = SpiConfig {
         bus: ChosenSpiBus::StmF401(StmF401SpiBus::SPI1),
         frequency_mhz: 10,
@@ -64,7 +67,8 @@ fn add_spi_rejects_invalid_mapping_from_direct_struct_construction() {
 
 #[test]
 fn black_pill_does_not_expose_f401_spi4_without_board_pins() {
-    let config = Config::new(TargetBoard::BlackPill(TargetMcu::StmF401));
+    let board = TargetBoard::try_new(TargetBoardId::BlackPill, TargetMcu::StmF401).unwrap();
+    let config = Config::new(board);
     let available_buses = config.available_spi_buses();
 
     assert!(available_buses.contains(&ChosenSpiBus::StmF401(StmF401SpiBus::SPI1)));
@@ -75,7 +79,8 @@ fn black_pill_does_not_expose_f401_spi4_without_board_pins() {
 
 #[test]
 fn black_pill_rejects_f401_spi4_mapping_at_config_level() {
-    let mut config = Config::new(TargetBoard::BlackPill(TargetMcu::StmF401));
+    let board = TargetBoard::try_new(TargetBoardId::BlackPill, TargetMcu::StmF401).unwrap();
+    let mut config = Config::new(board);
     let spi = SpiConfig {
         bus: ChosenSpiBus::StmF401(StmF401SpiBus::SPI4),
         frequency_mhz: 10,
