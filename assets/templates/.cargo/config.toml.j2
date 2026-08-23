@@ -1,7 +1,7 @@
-[target.{{ target | default('thumbv7em-none-eabi') }}]
+[target.{{ target }}]
 # раскомментируйте эту строку, чтобы `cargo run` запускал программы в QEMU
 # runner = "qemu-system-arm -cpu cortex-m3 -machine lm3s6965evb -nographic -semihosting-config enable=on,target=native -kernel"
-runner = "probe-rs run --chip {{ chip | default('STM32F401CCU6') }}"
+runner = "probe-rs run --chip {{ chip }}"
 
 [target.'cfg(all(target_arch = "arm", target_os = "none"))']
 # раскомментируйте ОДНУ из этих трёх опций, чтобы `cargo run` запускал сессию GDB
@@ -29,7 +29,7 @@ rustflags = [
 
 [build]
 # Выберите ОДИН из этих стандартных таргетов для компиляции
-{% set t = target | default('thumbv7em-none-eabi') -%}
+{% set t = target -%}
 {% if t == 'thumbv6m-none-eabi' %}target{% else %}# target{% endif %} = "thumbv6m-none-eabi"        # Cortex-M0 and Cortex-M0+
 {% if t == 'thumbv7m-none-eabi' %}target{% else %}# target{% endif %} = "thumbv7m-none-eabi"        # Cortex-M3
 {% if t == 'thumbv7em-none-eabi' %}target{% else %}# target{% endif %} = "thumbv7em-none-eabi"       # Cortex-M4 and Cortex-M7 (no FPU)

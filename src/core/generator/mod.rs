@@ -138,6 +138,28 @@ mod tests {
         assert!(main_rs.contains("stm32f1xx_hal"));
         assert!(main_rs.contains("rcc.cfgr.freeze(&mut flash.acr)"));
         assert!(!main_rs.contains("stm32f4xx_hal"));
+
+        let cargo_toml = files
+            .get("Cargo.toml")
+            .expect("Cargo.toml should be rendered");
+        assert!(
+            cargo_toml
+                .contains("stm32f1xx-hal = { version = \"0.11.0\", features = [\"stm32f103\"]}")
+        );
+
+        let cargo_config = files
+            .get(".cargo/config.toml")
+            .expect("Cargo config should be rendered");
+        assert!(cargo_config.contains("[target.thumbv7m-none-eabi]"));
+        assert!(cargo_config.contains("probe-rs run --chip STM32F103C8T6"));
+
+        let memory_x = files.get("memory.x").expect("memory.x should be rendered");
+        assert!(memory_x.contains("MCU STM32F103C8T6 (stm32f1)"));
+        assert!(memory_x.contains("FLASH : ORIGIN = 0x08000000, LENGTH = 64K"));
+        assert!(memory_x.contains("RAM : ORIGIN = 0x20000000, LENGTH = 20K"));
+
+        let justfile = files.get("justfile").expect("justfile should be rendered");
+        assert!(justfile.contains("dfu-util -a 0 -s 0x08000000:leave"));
     }
 
     #[test]

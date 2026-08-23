@@ -4,7 +4,7 @@ build:
 
 set_on_bp:
     just build
-    dfu-util -a 0 -s 0x08000000:leave -D target/{{ project_name | default('stm32_project') }}.bin
+    dfu-util -a 0 -s {{ flash_origin }}:leave -D target/{{ project_name | default('stm32_project') }}.bin
 
 {% if features.uses_w5500 %}
 setup_ip:

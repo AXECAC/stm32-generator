@@ -1,9 +1,9 @@
 MEMORY
 {
   /* ПРИМЕЧАНИЕ 1 K = 1 KiBi = 1024 байт */
-  /* TODO Настройте эти регионы памяти в соответствии с вашей картой памяти */
-  FLASH : ORIGIN = {{ flash_origin | default('0x08000000') }}, LENGTH = {{ flash_length | default('256K') }}
-  RAM : ORIGIN = {{ ram_origin | default('0x20000000') }}, LENGTH = {{ ram_length | default('64K') }}
+  /* MCU {{ chip }} ({{ mcu_family }}): карта памяти берётся из TargetMcu. */
+  FLASH : ORIGIN = {{ flash_origin }}, LENGTH = {{ flash_length }}
+  RAM : ORIGIN = {{ ram_origin }}, LENGTH = {{ ram_length }}
 }
 
 /* Здесь будет размещён стек вызовов. */
