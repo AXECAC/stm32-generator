@@ -62,7 +62,13 @@ macro_rules! define_mcus {
                 spi_bus_type: $spi_bus_type:ty,
                 family: $family:expr,
                 hal_version: $hal_version:expr,
-                feature: $feature:expr $(,)?
+                feature: $feature:expr,
+                target: $target:expr,
+                chip: $chip:expr,
+                flash_origin: $flash_origin:expr,
+                flash_length: $flash_length:expr,
+                ram_origin: $ram_origin:expr,
+                ram_length: $ram_length:expr $(,)?
             }
         ),* $(,)?
     ) => {
@@ -96,6 +102,60 @@ macro_rules! define_mcus {
                             }).collect()
                         }
                     ),*
+                }
+            }
+
+            pub fn mcu_family(&self) -> &'static str {
+                match self {
+                    $( Self::$variant => $family ),*
+                }
+            }
+
+            pub fn hal_version(&self) -> &'static str {
+                match self {
+                    $( Self::$variant => $hal_version ),*
+                }
+            }
+
+            pub fn hal_feature(&self) -> &'static str {
+                match self {
+                    $( Self::$variant => $feature ),*
+                }
+            }
+
+            pub fn target(&self) -> &'static str {
+                match self {
+                    $( Self::$variant => $target ),*
+                }
+            }
+
+            pub fn chip(&self) -> &'static str {
+                match self {
+                    $( Self::$variant => $chip ),*
+                }
+            }
+
+            pub fn flash_origin(&self) -> &'static str {
+                match self {
+                    $( Self::$variant => $flash_origin ),*
+                }
+            }
+
+            pub fn flash_length(&self) -> &'static str {
+                match self {
+                    $( Self::$variant => $flash_length ),*
+                }
+            }
+
+            pub fn ram_origin(&self) -> &'static str {
+                match self {
+                    $( Self::$variant => $ram_origin ),*
+                }
+            }
+
+            pub fn ram_length(&self) -> &'static str {
+                match self {
+                    $( Self::$variant => $ram_length ),*
                 }
             }
         }
@@ -243,6 +303,12 @@ define_mcus! {
         family: "stm32f1",
         hal_version: "0.11.0",
         feature: "stm32f103",
+        target: "thumbv7m-none-eabi",
+        chip: "STM32F103C8T6",
+        flash_origin: "0x08000000",
+        flash_length: "64K",
+        ram_origin: "0x20000000",
+        ram_length: "20K",
     },
     StmF401 {
         pin_type: crate::core::gpio::f4::f401::StmF401Pin,
@@ -251,5 +317,11 @@ define_mcus! {
         family: "stm32f4",
         hal_version: "0.23.0",
         feature: "stm32f401",
+        target: "thumbv7em-none-eabi",
+        chip: "STM32F401CCU6",
+        flash_origin: "0x08000000",
+        flash_length: "256K",
+        ram_origin: "0x20000000",
+        ram_length: "64K",
     },
 }

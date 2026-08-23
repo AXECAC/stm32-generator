@@ -12,6 +12,12 @@ pub struct TemplateContext {
     pub mcu_family: String,
     pub hal_version: String,
     pub hal_feature: String,
+    pub target: String,
+    pub chip: String,
+    pub flash_origin: String,
+    pub flash_length: String,
+    pub ram_origin: String,
+    pub ram_length: String,
     pub used_ports: Vec<String>,
     pub gpio_pins: Vec<GpioPinCtx>,
     pub spis: Vec<SpiCtx>,
@@ -43,6 +49,7 @@ pub struct GpioPinCtx {
     pub label: String,
     pub port: String,
     pub pin_num: String,
+    pub cr_reg: String,
     pub method: String,
     pub is_output: bool,
     pub speed: Option<String>,
@@ -52,6 +59,8 @@ pub struct GpioPinCtx {
 pub struct PinCtx {
     pub port: String,
     pub pin_num: String,
+    pub cr_reg: String,
+    pub hal_pin_type: String,
 }
 
 impl PinCtx {
@@ -60,9 +69,21 @@ impl PinCtx {
     }
 
     fn from_str(s: &'static str) -> Self {
+        let port = s[..1].to_lowercase();
+        let pin_num = s[1..].to_string();
+        let pin_number = pin_num
+            .parse::<u8>()
+            .expect("pin variant must contain a number");
+
         Self {
-            port: s[..1].to_lowercase(),
-            pin_num: s[1..].to_string(),
+            cr_reg: if pin_number <= 7 {
+                "crl".to_string()
+            } else {
+                "crh".to_string()
+            },
+            hal_pin_type: format!("gpio::gpio{}::P{}{}", port, port.to_uppercase(), pin_num),
+            port,
+            pin_num,
         }
     }
 }
@@ -78,6 +99,7 @@ pub struct SpiCtx {
     pub phase: String,
     pub frequency_mhz: u32,
     pub pins_tuple: String,
+    pub f1_pins_tuple: String,
 }
 
 #[derive(Clone, Serialize)]
@@ -117,6 +139,7 @@ impl TemplateContext {
                 label: p.label(),
                 port: pin_ctx.port,
                 pin_num: pin_ctx.pin_num,
+                cr_reg: pin_ctx.cr_reg,
                 method: method.to_string(),
                 is_output,
                 speed: speed.map(|s| s.to_string()),
@@ -140,6 +163,14 @@ impl TemplateContext {
             let miso = spi.miso.as_ref().map(PinCtx::new);
             let mosi = spi.mosi.as_ref().map(PinCtx::new);
 
+            let mapping = spi
+                .bus
+                .spi_mappings()
+                .into_iter()
+                .find(|mapping| mapping.sck == spi.sck);
+            let default_miso = mapping.as_ref().map(|mapping| PinCtx::new(&mapping.miso));
+            let default_mosi = mapping.as_ref().map(|mapping| PinCtx::new(&mapping.mosi));
+
             // Собираем кортеж пинов
             let miso_str = if miso.is_some() {
                 format!("Some(miso_{})", bus_name)
@@ -153,6 +184,30 @@ impl TemplateContext {
             };
             let pins_tuple = format!("Some(sck_{}), {}, {}", bus_name, miso_str, mosi_str);
 
+            let f1_miso_str = if miso.is_some() {
+                format!("Some(miso_{})", bus_name)
+            } else {
+                format!(
+                    "None::<stm32f1xx_hal::{}>",
+                    default_miso
+                        .as_ref()
+                        .expect("SPI mapping must provide MISO")
+                        .hal_pin_type
+                )
+            };
+            let f1_mosi_str = if mosi.is_some() {
+                format!("Some(mosi_{})", bus_name)
+            } else {
+                format!(
+                    "None::<stm32f1xx_hal::{}>",
+                    default_mosi
+                        .as_ref()
+                        .expect("SPI mapping must provide MOSI")
+                        .hal_pin_type
+                )
+            };
+            let f1_pins_tuple = format!("Some(sck_{}), {}, {}", bus_name, f1_miso_str, f1_mosi_str);
+
             spis.push(SpiCtx {
                 bus_name,
                 pac_bus,
@@ -163,6 +218,7 @@ impl TemplateContext {
                 phase: phase.to_string(),
                 frequency_mhz: spi.frequency_mhz,
                 pins_tuple,
+                f1_pins_tuple,
             });
         }
         spis
@@ -239,6 +295,7 @@ impl TemplateContext {
 
     /// Строит контекст для Jinja из сырого конфига
     pub fn from_config(config: &Config, project_name: String) -> Result<Self, GeneratorError> {
+        let mcu = config.board.mcu();
         let mut used_ports_set = HashSet::new();
         for pin in config.all_uses_pins() {
             used_ports_set.insert(PinCtx::new(&pin).port);
@@ -246,37 +303,71 @@ impl TemplateContext {
         let mut used_ports: Vec<String> = used_ports_set.into_iter().collect();
         used_ports.sort();
 
-        let first_pin = config.all_uses_pins().first().copied();
-
-        let mcu_family = first_pin
-            .map(|p| p.mcu_family())
-            .ok_or(GeneratorError::EmptyConfig)?
-            .to_string();
-
-        let hal_version = first_pin
-            .map(|p| p.hal_version())
-            .unwrap_or("0.21.0")
-            .to_string();
-
-        let hal_feature = first_pin
-            .map(|p| p.hal_feature())
-            .unwrap_or("stm32f401")
-            .to_string();
-
         let gpio_pins = Self::build_gpio_ctx(config);
         let spis = Self::build_spi_ctx(config);
         let peripherals_ctx = Self::build_peripherals_ctx(config);
 
         Ok(Self {
             project_name,
-            mcu_family,
-            hal_version,
-            hal_feature,
+            mcu_family: mcu.mcu_family().to_string(),
+            hal_version: mcu.hal_version().to_string(),
+            hal_feature: mcu.hal_feature().to_string(),
+            target: mcu.target().to_string(),
+            chip: mcu.chip().to_string(),
+            flash_origin: mcu.flash_origin().to_string(),
+            flash_length: mcu.flash_length().to_string(),
+            ram_origin: mcu.ram_origin().to_string(),
+            ram_length: mcu.ram_length().to_string(),
             used_ports,
             gpio_pins,
             spis,
             features: peripherals_ctx.features,
             peripherals: peripherals_ctx.peripherals,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::TemplateContext;
+    use crate::core::boards::{TargetBoard, TargetBoardId};
+    use crate::core::config::Config;
+    use crate::core::gpio::TargetMcu;
+
+    #[test]
+    fn empty_f103_config_uses_selected_board_metadata() {
+        let board = TargetBoard::try_new(TargetBoardId::BluePill, TargetMcu::StmF103).unwrap();
+        let config = Config::new(board);
+
+        let context = TemplateContext::from_config(&config, "blue_pill".to_string())
+            .expect("board metadata should be enough to build an empty context");
+
+        assert_eq!(context.mcu_family, "stm32f1");
+        assert_eq!(context.hal_version, "0.11.0");
+        assert_eq!(context.hal_feature, "stm32f103");
+        assert_eq!(context.target, "thumbv7m-none-eabi");
+        assert_eq!(context.chip, "STM32F103C8T6");
+        assert_eq!(context.flash_origin, "0x08000000");
+        assert_eq!(context.flash_length, "64K");
+        assert_eq!(context.ram_origin, "0x20000000");
+        assert_eq!(context.ram_length, "20K");
+        assert!(context.used_ports.is_empty());
+    }
+
+    #[test]
+    fn empty_f401_config_uses_selected_board_metadata() {
+        let board = TargetBoard::try_new(TargetBoardId::BlackPill, TargetMcu::StmF401).unwrap();
+        let config = Config::new(board);
+
+        let context = TemplateContext::from_config(&config, "black_pill".to_string())
+            .expect("board metadata should be enough to build an empty context");
+
+        assert_eq!(context.mcu_family, "stm32f4");
+        assert_eq!(context.hal_version, "0.23.0");
+        assert_eq!(context.hal_feature, "stm32f401");
+        assert_eq!(context.target, "thumbv7em-none-eabi");
+        assert_eq!(context.chip, "STM32F401CCU6");
+        assert_eq!(context.flash_length, "256K");
+        assert_eq!(context.ram_length, "64K");
     }
 }
