@@ -63,9 +63,6 @@ pub enum ConfigError {
 /// Ошибки генерации проекта
 #[derive(Debug, Error)]
 pub enum GeneratorError {
-    #[error("Невозможно определить семейство микроконтроллера: конфигурация пуста")]
-    EmptyConfig,
-
     #[error("Ошибка шаблонизатора: {0}")]
     RenderError(#[from] minijinja::Error),
 
