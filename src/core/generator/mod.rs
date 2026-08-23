@@ -35,6 +35,14 @@ fn build_environment<'a>() -> Result<Environment<'a>, GeneratorError> {
     env.add_template("blocks/mcu/stm32f4/init.rs.j2", templates::MCU_STM32F4_INIT)?;
     env.add_template("blocks/mcu/stm32f4/gpio.rs.j2", templates::MCU_STM32F4_GPIO)?;
 
+    // Блоки MCU (STM32F1)
+    env.add_template(
+        "blocks/mcu/stm32f1/imports.rs.j2",
+        templates::MCU_STM32F1_IMPORTS,
+    )?;
+    env.add_template("blocks/mcu/stm32f1/init.rs.j2", templates::MCU_STM32F1_INIT)?;
+    env.add_template("blocks/mcu/stm32f1/gpio.rs.j2", templates::MCU_STM32F1_GPIO)?;
+
     // Блоки Периферии (W5500)
     env.add_template(
         "blocks/peripherals/W5500/imports.rs.j2",
@@ -103,4 +111,76 @@ fn render_templates(
 pub fn render(context: &TemplateContext) -> Result<HashMap<ProjectPath, Code>, GeneratorError> {
     let env = build_environment()?;
     render_templates(&env, context)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::render;
+    use crate::core::boards::{TargetBoard, TargetBoardId};
+    use crate::core::config::{Config, SpiConfig, SpiMode};
+    use crate::core::generator::context::TemplateContext;
+    use crate::core::gpio::ChosenPin;
+    use crate::core::gpio::ChosenSpiBus;
+    use crate::core::gpio::TargetMcu;
+    use crate::core::gpio::f1::f103::{StmF103Pin, StmF103SpiBus};
+
+    #[test]
+    fn render_selects_stm32f1_blocks_from_mcu_family() {
+        let board = TargetBoard::try_new(TargetBoardId::BluePill, TargetMcu::StmF103).unwrap();
+        let config = Config::new(board);
+        let context = TemplateContext::from_config(&config, "blue_pill".to_string()).unwrap();
+
+        let files = render(&context).expect("F1 templates should render");
+        let main_rs = files
+            .get("src/main.rs")
+            .expect("main.rs should be rendered");
+
+        assert!(main_rs.contains("stm32f1xx_hal"));
+        assert!(main_rs.contains("rcc.cfgr.freeze(&mut flash.acr)"));
+        assert!(!main_rs.contains("stm32f4xx_hal"));
+    }
+
+    #[test]
+    fn render_emits_f1_spi_pin_configuration() {
+        let board = TargetBoard::try_new(TargetBoardId::BluePill, TargetMcu::StmF103).unwrap();
+        let mut config = Config::new(board);
+        config
+            .add_spi_bus(SpiConfig {
+                bus: ChosenSpiBus::StmF103(StmF103SpiBus::SPI1),
+                frequency_mhz: 2,
+                mode: SpiMode::Mode0,
+                sck: ChosenPin::StmF103(StmF103Pin::A5),
+                miso: Some(ChosenPin::StmF103(StmF103Pin::A6)),
+                mosi: Some(ChosenPin::StmF103(StmF103Pin::A7)),
+            })
+            .unwrap();
+
+        let context = TemplateContext::from_config(&config, "blue_pill_spi".to_string()).unwrap();
+        let files = render(&context).expect("F1 SPI templates should render");
+        let main_rs = files
+            .get("src/main.rs")
+            .expect("main.rs should be rendered");
+
+        assert!(main_rs.contains("gpioa.pa5.into_alternate_push_pull(&mut gpioa.crl)"));
+        assert!(main_rs.contains("gpioa.pa6.into_floating_input(&mut gpioa.crl)"));
+        assert!(main_rs.contains("gpioa.pa7.into_alternate_push_pull(&mut gpioa.crl)"));
+        assert!(main_rs.contains("dp.SPI1"));
+        assert!(main_rs.contains("(Some(sck_spi1), Some(miso_spi1), Some(mosi_spi1))"));
+    }
+
+    #[test]
+    fn render_keeps_stm32f4_blocks_for_black_pill() {
+        let board = TargetBoard::try_new(TargetBoardId::BlackPill, TargetMcu::StmF401).unwrap();
+        let config = Config::new(board);
+        let context = TemplateContext::from_config(&config, "black_pill".to_string()).unwrap();
+
+        let files = render(&context).expect("F4 templates should render");
+        let main_rs = files
+            .get("src/main.rs")
+            .expect("main.rs should be rendered");
+
+        assert!(main_rs.contains("stm32f4xx_hal"));
+        assert!(main_rs.contains("let mut rcc = dp.RCC.constrain();"));
+        assert!(!main_rs.contains("stm32f1xx_hal"));
+    }
 }
