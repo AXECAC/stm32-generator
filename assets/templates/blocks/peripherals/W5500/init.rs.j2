@@ -1,8 +1,6 @@
     // Инициализация W5500 #{{ peripheral.id }}
-    // Пины аппаратного сброса и Chip Select
-    let mut w5500_rst_{{ peripheral.id }} = gpio{{ peripheral.rst.port }}.p{{ peripheral.rst.port }}{{ peripheral.rst.pin_num }}.into_push_pull_output();
-    let mut w5500_cs_{{ peripheral.id }} = gpio{{ peripheral.cs.port }}.p{{ peripheral.cs.port }}{{ peripheral.cs.pin_num }}.into_push_pull_output();
-    w5500_cs_{{ peripheral.id }}.set_high(); // Изначально CS в высоком уровне (неактивен)
+    // MCU-specific настройка пинов аппаратного сброса и Chip Select
+    {% include "blocks/mcu/" ~ mcu_family ~ "/w5500_pins.rs.j2" %}
 
     // Ручная перезагрузка чипа W5500
     w5500_rst_{{ peripheral.id }}.set_low();
