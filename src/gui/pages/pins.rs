@@ -147,10 +147,17 @@ impl PinsPageModel {
 
         let config = self.config.read().unwrap();
         self.board_pins = config.board.build_pins();
+        self.update_canvas_chip_label(config.board.chip_label());
         self.update_canvas_pins(&config);
         self.update_locked_canvas_pins(&config);
 
         if let Some(selected_pin) = self.selected_pin.clone() {
+            if !self.board_pins.contains(&selected_pin) {
+                drop(config);
+                self.clear_selection();
+                return;
+            }
+
             if self.is_pin_locked_by_non_gpio(&config, &selected_pin) {
                 drop(config);
                 self.clear_selection();
@@ -254,6 +261,17 @@ impl PinsPageModel {
             .send(ChipCanvasInput::UpdatePins(pins_data))
         {
             log::error!("Не удалось отправить UpdatePins в ChipCanvas: {:?}", e);
+        }
+    }
+
+    /// Отправляет в canvas label текущего MCU без обратного события в страницу.
+    fn update_canvas_chip_label(&self, label: String) {
+        if let Err(e) = self
+            .chip_canvas
+            .sender()
+            .send(ChipCanvasInput::UpdateChipLabel(label))
+        {
+            log::error!("Не удалось отправить UpdateChipLabel в ChipCanvas: {:?}", e);
         }
     }
 

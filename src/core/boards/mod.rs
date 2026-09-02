@@ -71,10 +71,6 @@ impl TargetBoard {
         }
     }
 
-    pub fn id(&self) -> TargetBoardId {
-        self.id
-    }
-
     pub fn mcu(&self) -> TargetMcu {
         self.mcu
     }

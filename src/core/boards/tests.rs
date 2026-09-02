@@ -7,7 +7,6 @@ fn board_pair_is_created_for_supported_mcu() {
     let board = TargetBoard::try_new(TargetBoardId::BluePill, TargetMcu::StmF103)
         .expect("Blue Pill should support STM32F103");
 
-    assert_eq!(board.id(), TargetBoardId::BluePill);
     assert_eq!(board.mcu(), TargetMcu::StmF103);
 }
 

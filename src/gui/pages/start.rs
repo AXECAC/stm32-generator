@@ -90,7 +90,9 @@ impl SimpleComponent for StartPageModel {
     ) -> ComponentParts<Self> {
         let black_pill = TargetBoard::try_new(TargetBoardId::BlackPill, TargetMcu::StmF401)
             .expect("Black Pill / STM32F401 must be a supported platform");
-        let board_items = vec![black_pill];
+        let blue_pill = TargetBoard::try_new(TargetBoardId::BluePill, TargetMcu::StmF103)
+            .expect("Blue Pill / STM32F103 must be a supported platform");
+        let board_items = vec![black_pill, blue_pill];
         let board_labels = board_items
             .iter()
             .map(TargetBoard::name)
