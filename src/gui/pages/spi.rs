@@ -7,10 +7,9 @@ use relm4::{
     SimpleComponent, adw, gtk,
 };
 
-use crate::core::board::PinType;
 use crate::core::config::{Config, SpiConfig};
 use crate::core::errors::ConfigError;
-use crate::core::gpio::{ChosenPin, ChosenSpiBus};
+use crate::core::gpio::ChosenSpiBus;
 use crate::gui::components::forms::spi::{SpiFormInput, SpiFormModel, SpiFormOutput};
 use crate::gui::components::spi_bus_row::{SpiBusRowModel, SpiBusRowOutput};
 
@@ -159,41 +158,19 @@ impl SimpleComponent for SpiPageModel {
 impl SpiPageModel {
     /// Перечитывает глобальный [`Config`] и синхронизирует локальные списки страницы.
     fn refresh_from_config(&mut self) {
-        let (available_buses, available_pins, configured_spis) = {
+        let (available_buses, mappings, configured_spis) = {
             let config = self.config.read().unwrap();
 
-            let configured_buses = config
-                .spi()
-                .iter()
-                .map(|spi| spi.bus)
-                .collect::<Vec<ChosenSpiBus>>();
-            let available_buses = config
-                .board
-                .mcu()
-                .all_spi_buses()
-                .into_iter()
-                .filter(|bus| !configured_buses.contains(bus))
-                .collect::<Vec<_>>();
-
-            let used_pins = config.all_uses_pins();
-            let available_pins = config
-                .board
-                .build_pins()
-                .into_iter()
-                .filter_map(|pin| match pin.pin_type {
-                    PinType::Gpio(chosen_pin) if !used_pins.contains(&chosen_pin) => {
-                        Some(chosen_pin)
-                    }
-                    _ => None,
-                })
-                .collect::<Vec<ChosenPin>>();
-
-            (available_buses, available_pins, config.spi().to_vec())
+            (
+                config.available_spi_buses(),
+                config.available_spi_mappings(),
+                config.spi().to_vec(),
+            )
         };
 
         self.send_form_input(SpiFormInput::UpdateOptions {
             buses: available_buses,
-            pins: available_pins,
+            mappings,
         });
         self.configured_buses.refresh(configured_spis);
     }

@@ -6,9 +6,7 @@ use panic_halt as _;
 use cortex_m_rt::entry;
 
 // Инициализация базовых импортов для выбранного семейства МК
-{% if mcu_family == "stm32f4" -%}
-{% include "blocks/mcu/stm32f4/imports.rs.j2" %}
-{%- endif %}
+{% include "blocks/mcu/" ~ mcu_family ~ "/imports.rs.j2" %}
 
 {% if features.uses_w5500 -%}
 // Импорты для модуля W5500
@@ -18,14 +16,10 @@ use cortex_m_rt::entry;
 #[entry]
 fn main() -> ! {
     // 1. Базовая инициализация МК (получение Peripherals, настройка RCC, SysTick/Delay)
-    {% if mcu_family == "stm32f4" -%}
-    {% include "blocks/mcu/stm32f4/init.rs.j2" %}
-    {%- endif %}
+    {% include "blocks/mcu/" ~ mcu_family ~ "/init.rs.j2" %}
 
     // 2. Инициализация портов (включение тактирования портов, настройка GPIO и SPI)
-    {% if mcu_family == "stm32f4" -%}
-    {% include "blocks/mcu/stm32f4/gpio.rs.j2" %}
-    {%- endif %}
+    {% include "blocks/mcu/" ~ mcu_family ~ "/gpio.rs.j2" %}
 
     // 3. Инициализация периферии
     {% for configured_peripheral in peripherals -%}

@@ -104,6 +104,7 @@ impl SpiMode {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::gpio::TargetMcu;
     use crate::core::gpio::f4::f401::{StmF401Pin, StmF401SpiBus};
 
     /// Проверяет корректное создание SPI-конфигурации с тремя различными пинами.
@@ -129,6 +130,61 @@ mod tests {
                 mosi: Some(ChosenPin::StmF401(StmF401Pin::A7)),
             })
         );
+    }
+
+    #[test]
+    fn new_accepts_optional_lines_from_a_valid_mapping() {
+        let result = SpiConfig::new(
+            ChosenSpiBus::StmF401(StmF401SpiBus::SPI1),
+            10,
+            SpiMode::Mode0,
+            ChosenPin::StmF401(StmF401Pin::A5),
+            Some(ChosenPin::StmF401(StmF401Pin::A6)),
+            None,
+        );
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn new_accepts_distinct_pins_before_board_validation() {
+        let result = SpiConfig::new(
+            ChosenSpiBus::StmF401(StmF401SpiBus::SPI1),
+            10,
+            SpiMode::Mode0,
+            ChosenPin::StmF401(StmF401Pin::B13),
+            Some(ChosenPin::StmF401(StmF401Pin::B14)),
+            Some(ChosenPin::StmF401(StmF401Pin::B15)),
+        );
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn f401_spi_mapping_catalog_contains_only_distinct_pins() {
+        for bus in [
+            StmF401SpiBus::SPI1,
+            StmF401SpiBus::SPI2,
+            StmF401SpiBus::SPI3,
+            StmF401SpiBus::SPI4,
+        ] {
+            for mapping in bus.spi_mappings() {
+                assert_ne!(mapping.sck, mapping.miso);
+                assert_ne!(mapping.sck, mapping.mosi);
+                assert_ne!(mapping.miso, mapping.mosi);
+            }
+        }
+    }
+
+    #[test]
+    fn f401_exposes_all_mcu_spi_buses() {
+        let buses = TargetMcu::StmF401.all_spi_buses();
+
+        assert_eq!(buses.len(), 4);
+        assert!(buses.contains(&ChosenSpiBus::StmF401(StmF401SpiBus::SPI1)));
+        assert!(buses.contains(&ChosenSpiBus::StmF401(StmF401SpiBus::SPI2)));
+        assert!(buses.contains(&ChosenSpiBus::StmF401(StmF401SpiBus::SPI3)));
+        assert!(buses.contains(&ChosenSpiBus::StmF401(StmF401SpiBus::SPI4)));
     }
 
     /// Проверяет, что MISO не может использовать тот же пин, что и SCK.

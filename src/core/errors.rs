@@ -2,8 +2,18 @@ use thiserror::Error;
 
 use std::net::Ipv4Addr;
 
+use crate::core::boards::TargetBoardId;
 use crate::core::gpio::{ChosenPin, ChosenSpiBus};
 use crate::core::peripherals::ethernet::MacAddr;
+
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum TargetBoardError {
+    #[error("MCU {mcu:?} не поддерживается платой {board:?}")]
+    UnsupportedMcu {
+        board: TargetBoardId,
+        mcu: crate::core::gpio::TargetMcu,
+    },
+}
 
 /// Ошибки создания конфигурации
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -19,6 +29,17 @@ pub enum ConfigError {
 
     #[error("Пин уже используется: {0:?}")]
     PinAlreadyInUse(ChosenPin),
+
+    #[error("Недопустимая распиновка {bus:?}: SCK={sck:?}, MISO={miso:?}, MOSI={mosi:?}")]
+    UnsupportedSpiMapping {
+        bus: ChosenSpiBus,
+        sck: ChosenPin,
+        miso: Option<ChosenPin>,
+        mosi: Option<ChosenPin>,
+    },
+
+    #[error("SPI mapping недоступен на выбранной плате: {0:?}")]
+    SpiMappingUnavailableOnBoard(ChosenSpiBus),
 
     #[error("SPI шина используется периферией, удалите сначала её: {0:?}")]
     SpiBusInUse(ChosenSpiBus),
@@ -42,9 +63,6 @@ pub enum ConfigError {
 /// Ошибки генерации проекта
 #[derive(Debug, Error)]
 pub enum GeneratorError {
-    #[error("Невозможно определить семейство микроконтроллера: конфигурация пуста")]
-    EmptyConfig,
-
     #[error("Ошибка шаблонизатора: {0}")]
     RenderError(#[from] minijinja::Error),
 

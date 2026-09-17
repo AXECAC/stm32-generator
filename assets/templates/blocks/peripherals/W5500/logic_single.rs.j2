@@ -16,23 +16,8 @@
                 let mut buf = [0u8; 64];
                 if let Ok(bytes_read) = w5500_{{ peripheral.id }}.tcp_read(TCP_SOCKET_{{ peripheral.id }}, &mut buf) {
                     if bytes_read > 0 {
-                        // TODO: Добавьте вашу бизнес-логику обработки входящих данных здесь
-                        
-                        /* Пример обработки данных:
-                        for i in 0..bytes_read {
-                            match buf[i as usize] {
-                                b'0' => {
-                                    // my_pin.set_low();
-                                    let _ = w5500_{{ peripheral.id }}.tcp_write(TCP_SOCKET_{{ peripheral.id }}, b"LED ON\n");
-                                }
-                                b'1' => {
-                                    // my_pin.set_high();
-                                    let _ = w5500_{{ peripheral.id }}.tcp_write(TCP_SOCKET_{{ peripheral.id }}, b"LED OFF\n");
-                                }
-                                _ => {}
-                            }
-                        }
-                        */
+                        // Application hook: обработайте buf[..bytes_read as usize]
+                        // в соответствии с прикладной логикой проекта.
                     }
                 }
 

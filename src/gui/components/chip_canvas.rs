@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::f64::consts::PI;
 use std::rc::Rc;
 
-use crate::core::board::{Pin, PinType};
+use crate::core::boards::{Pin, PinType};
 use crate::gui::colors;
 
 macro_rules! set_color {
@@ -56,6 +56,7 @@ pub struct ChipCanvasModel {
 pub enum ChipCanvasInput {
     UpdatePins(Vec<(Pin, Option<String>, bool)>),
     UpdateLockedPins(Vec<String>),
+    UpdateChipLabel(String),
     ClearSelection,
     HandleClick(f64, f64, f64, f64),
 }
@@ -138,6 +139,13 @@ impl SimpleComponent for ChipCanvasModel {
             }
             ChipCanvasInput::UpdateLockedPins(keys) => {
                 self.state.borrow_mut().locked_pin_keys = keys;
+            }
+            ChipCanvasInput::UpdateChipLabel(label) => {
+                let mut state = self.state.borrow_mut();
+                if state.chip_label != label {
+                    state.chip_label = label;
+                    redraw = true;
+                }
             }
             ChipCanvasInput::ClearSelection => {
                 self.state.borrow_mut().selected_pin_key = None;

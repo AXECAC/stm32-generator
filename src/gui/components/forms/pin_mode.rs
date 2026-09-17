@@ -7,7 +7,7 @@ use adw::prelude::*;
 use relm4::factory::FactoryVecDeque;
 use relm4::{ComponentParts, ComponentSender, SimpleComponent, adw, gtk};
 
-use crate::core::board::{Pin, PinType};
+use crate::core::boards::{Pin, PinType};
 use crate::core::config::PinConfig;
 use crate::core::gpio::{ChosenPinWithMode, PinModeUiInfo};
 use crate::gui::components::forms::{ComboField, EntryField};

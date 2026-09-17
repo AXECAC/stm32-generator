@@ -8,7 +8,7 @@ use relm4::{
 };
 use strum::{IntoEnumIterator, VariantNames};
 
-use crate::core::board::PinType;
+use crate::core::boards::PinType;
 use crate::core::config::{Config, PeripheralId};
 use crate::core::peripherals::ethernet::w5500::W5500Config;
 use crate::core::peripherals::{Peripheral, PeripheralKind};

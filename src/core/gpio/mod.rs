@@ -1,5 +1,18 @@
 use serde::Serialize;
+pub mod f1;
 pub mod f4;
+
+/// Полная совместимая распиновка одной SPI-шины.
+///
+/// Mapping описывает только аппаратные SPI-линии. CS и RST периферии
+/// остаются обычными GPIO и в этот тип не входят.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct SpiMapping {
+    pub bus: ChosenSpiBus,
+    pub sck: ChosenPin,
+    pub miso: ChosenPin,
+    pub mosi: ChosenPin,
+}
 
 /// Предоставляет абстракцию для графического интерфейса над специфичными для МК режимами пинов.
 ///
@@ -49,7 +62,13 @@ macro_rules! define_mcus {
                 spi_bus_type: $spi_bus_type:ty,
                 family: $family:expr,
                 hal_version: $hal_version:expr,
-                feature: $feature:expr $(,)?
+                feature: $feature:expr,
+                target: $target:expr,
+                chip: $chip:expr,
+                flash_origin: $flash_origin:expr,
+                flash_length: $flash_length:expr,
+                ram_origin: $ram_origin:expr,
+                ram_length: $ram_length:expr $(,)?
             }
         ),* $(,)?
     ) => {
@@ -83,6 +102,60 @@ macro_rules! define_mcus {
                             }).collect()
                         }
                     ),*
+                }
+            }
+
+            pub fn mcu_family(&self) -> &'static str {
+                match self {
+                    $( Self::$variant => $family ),*
+                }
+            }
+
+            pub fn hal_version(&self) -> &'static str {
+                match self {
+                    $( Self::$variant => $hal_version ),*
+                }
+            }
+
+            pub fn hal_feature(&self) -> &'static str {
+                match self {
+                    $( Self::$variant => $feature ),*
+                }
+            }
+
+            pub fn target(&self) -> &'static str {
+                match self {
+                    $( Self::$variant => $target ),*
+                }
+            }
+
+            pub fn chip(&self) -> &'static str {
+                match self {
+                    $( Self::$variant => $chip ),*
+                }
+            }
+
+            pub fn flash_origin(&self) -> &'static str {
+                match self {
+                    $( Self::$variant => $flash_origin ),*
+                }
+            }
+
+            pub fn flash_length(&self) -> &'static str {
+                match self {
+                    $( Self::$variant => $flash_length ),*
+                }
+            }
+
+            pub fn ram_origin(&self) -> &'static str {
+                match self {
+                    $( Self::$variant => $ram_origin ),*
+                }
+            }
+
+            pub fn ram_length(&self) -> &'static str {
+                match self {
+                    $( Self::$variant => $ram_length ),*
                 }
             }
         }
@@ -197,11 +270,46 @@ macro_rules! define_mcus {
                     $( Self::$variant(p) => p.into() ),*
                 }
             }
+
+            /// Возвращает полные аппаратно совместимые mapping для этой шины.
+            pub fn spi_mappings(&self) -> Vec<SpiMapping> {
+                match self {
+                    $( Self::$variant(bus) => bus.spi_mappings() ),*
+                }
+            }
+
+            /// Проверяет выбранные линии, допускаючи отключение MISO/MOSI.
+            pub fn supports_spi_pins(
+                &self,
+                sck: ChosenPin,
+                miso: Option<ChosenPin>,
+                mosi: Option<ChosenPin>,
+            ) -> bool {
+                self.spi_mappings().iter().any(|mapping| {
+                    mapping.sck == sck
+                        && miso.is_none_or(|pin| pin == mapping.miso)
+                        && mosi.is_none_or(|pin| pin == mapping.mosi)
+                })
+            }
         }
     };
 }
 
 define_mcus! {
+    StmF103 {
+        pin_type: crate::core::gpio::f1::f103::StmF103Pin,
+        mode_type: crate::core::gpio::f1::StmF1PinMode,
+        spi_bus_type: crate::core::gpio::f1::f103::StmF103SpiBus,
+        family: "stm32f1",
+        hal_version: "0.11.0",
+        feature: "stm32f103",
+        target: "thumbv7m-none-eabi",
+        chip: "STM32F103C8T6",
+        flash_origin: "0x08000000",
+        flash_length: "64K",
+        ram_origin: "0x20000000",
+        ram_length: "20K",
+    },
     StmF401 {
         pin_type: crate::core::gpio::f4::f401::StmF401Pin,
         mode_type: crate::core::gpio::f4::StmF4PinMode,
@@ -209,5 +317,11 @@ define_mcus! {
         family: "stm32f4",
         hal_version: "0.23.0",
         feature: "stm32f401",
+        target: "thumbv7em-none-eabi",
+        chip: "STM32F401CCU6",
+        flash_origin: "0x08000000",
+        flash_length: "256K",
+        ram_origin: "0x20000000",
+        ram_length: "64K",
     },
 }
